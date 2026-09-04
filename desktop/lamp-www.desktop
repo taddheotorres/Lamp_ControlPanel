@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0
+Type=Application
+Name=Web Root Directory (/var/www/html)
+GenericName=LAMP Document Root
+Comment=Open the local web root directory in your file manager
+Exec=xdg-open /var/www/html
+Icon=folder
+Terminal=false
+Categories=Development;
+Keywords=lamp;www;html;web;localhost;

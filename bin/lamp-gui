@@ -1,0 +1,338 @@
+#!/usr/bin/env python3
+"""
+LAMP Control Panel
+A lightweight, modern graphical management tool for Apache, MariaDB/MySQL, and PHP on Linux.
+"""
+
+import os
+import sys
+import time
+import shutil
+import threading
+import subprocess
+import webbrowser
+import tkinter as tk
+from tkinter import ttk, scrolledtext
+
+class LampControlPanel(tk.Tk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("LAMP Control Panel")
+        self.geometry("740x510")
+        self.minsize(700, 450)
+        self.configure(bg="#050505")
+
+        # Detect service names for cross-distro compatibility
+        self.apache_service = self._detect_service(["apache2", "httpd"])
+        self.mysql_service = self._detect_service(["mariadb", "mysql", "mysqld"])
+
+        self.style = ttk.Style(self)
+        self.style.theme_use("clam")
+
+        self._configure_styles()
+        self._build_ui()
+
+        self.log(f"Detected Web Service: {self.apache_service}", "System")
+        self.log(f"Detected Database Service: {self.mysql_service}", "System")
+        self.log("LAMP Control Panel ready.", "System")
+        
+        self.auto_refresh()
+
+    def _detect_service(self, candidates):
+        for s in candidates:
+            if shutil.which("systemctl"):
+                res = subprocess.run(["systemctl", "list-unit-files", f"{s}.service"], capture_output=True, text=True)
+                if s in res.stdout:
+                    return s
+            if os.path.exists(f"/etc/systemd/system/{s}.service") or os.path.exists(f"/lib/systemd/system/{s}.service") or os.path.exists(f"/usr/lib/systemd/system/{s}.service"):
+                return s
+        return candidates[0]
+
+    def _configure_styles(self):
+        # Base colors
+        self.style.configure(".", font=("Consolas", 9), background="#050505", foreground="#ffffff")
+        self.style.configure("TFrame", background="#050505")
+        self.style.configure("TLabel", background="#050505", foreground="#ffffff")
+
+        # Table headers & cells
+        self.style.configure("Header.TLabel", font=("Consolas", 9, "bold"), background="#111813", foreground="#00ff66", relief="flat", anchor="center")
+        self.style.configure("Cell.TLabel", font=("Consolas", 9), background="#0a0f0d", foreground="#ffffff", relief="flat", anchor="center")
+
+        # Status Badges
+        self.style.configure("Active.TLabel", font=("Consolas", 9, "bold"), background="#002b11", foreground="#00ff66", relief="solid", borderwidth=1, anchor="center")
+        self.style.configure("Inactive.TLabel", font=("Consolas", 9, "bold"), background="#2b0000", foreground="#ff4444", relief="solid", borderwidth=1, anchor="center")
+
+        # Buttons
+        self.style.configure("Action.TButton", font=("Consolas", 8, "bold"), background="#161616", foreground="#ffffff", borderwidth=1, padding=3)
+        self.style.map("Action.TButton",
+            background=[("active", "#222222"), ("pressed", "#000000")],
+            foreground=[("active", "#00ff66")])
+
+        self.style.configure("Matrix.TButton", font=("Consolas", 8, "bold"), background="#003314", foreground="#00ff66", borderwidth=1, padding=3)
+        self.style.map("Matrix.TButton",
+            background=[("active", "#004d1f"), ("pressed", "#00220d")],
+            foreground=[("active", "#ffffff")])
+
+        self.style.configure("Stop.TButton", font=("Consolas", 8, "bold"), background="#330000", foreground="#ff5555", borderwidth=1, padding=3)
+        self.style.map("Stop.TButton",
+            background=[("active", "#4d0000"), ("pressed", "#220000")],
+            foreground=[("active", "#ffffff")])
+
+    def _build_ui(self):
+        # Header banner
+        header_frame = ttk.Frame(self)
+        header_frame.pack(fill="x", padx=12, pady=(12, 6))
+
+        title_lbl = tk.Label(header_frame, text="LAMP CONTROL PANEL", font=("Consolas", 14, "bold"), bg="#050505", fg="#00ff66")
+        title_lbl.pack(side="left")
+
+        subtitle_lbl = tk.Label(header_frame, text="[ Apache | MariaDB/MySQL | PHP ]", font=("Consolas", 9), bg="#050505", fg="#889988")
+        subtitle_lbl.pack(side="right", pady=(4, 0))
+
+        # Main Table Container
+        main_container = ttk.Frame(self)
+        main_container.pack(fill="x", padx=12, pady=4)
+
+        # Left: Modules Grid
+        grid_frame = ttk.Frame(main_container)
+        grid_frame.pack(side="left", fill="both", expand=True)
+
+        headers = [("Module", 11), ("PID(s)", 13), ("Port(s)", 10), ("Action", 9), ("Admin", 8), ("Config", 8), ("Logs", 8)]
+        for col_idx, (text, width) in enumerate(headers):
+            lbl = ttk.Label(grid_frame, text=text, style="Header.TLabel", width=width, padding=5)
+            lbl.grid(row=0, column=col_idx, padx=1, pady=1, sticky="nsew")
+
+        # --- Row 1: Apache ---
+        self.ap_mod_lbl = ttk.Label(grid_frame, text="Apache", style="Inactive.TLabel", padding=4)
+        self.ap_mod_lbl.grid(row=1, column=0, padx=1, pady=1, sticky="nsew")
+
+        self.ap_pid_lbl = ttk.Label(grid_frame, text="", style="Cell.TLabel")
+        self.ap_pid_lbl.grid(row=1, column=1, padx=1, pady=1, sticky="nsew")
+
+        self.ap_port_lbl = ttk.Label(grid_frame, text="", style="Cell.TLabel")
+        self.ap_port_lbl.grid(row=1, column=2, padx=1, pady=1, sticky="nsew")
+
+        self.ap_act_btn = ttk.Button(grid_frame, text="Start", style="Matrix.TButton", command=self.toggle_apache)
+        self.ap_act_btn.grid(row=1, column=3, padx=1, pady=1, sticky="nsew")
+
+        self.ap_adm_btn = ttk.Button(grid_frame, text="Admin", style="Action.TButton", command=lambda: webbrowser.open("http://localhost"))
+        self.ap_adm_btn.grid(row=1, column=4, padx=1, pady=1, sticky="nsew")
+
+        self.ap_cfg_btn = ttk.Button(grid_frame, text="Config", style="Action.TButton", command=self.open_apache_conf)
+        self.ap_cfg_btn.grid(row=1, column=5, padx=1, pady=1, sticky="nsew")
+
+        self.ap_log_btn = ttk.Button(grid_frame, text="Logs", style="Action.TButton", command=self.open_apache_logs)
+        self.ap_log_btn.grid(row=1, column=6, padx=1, pady=1, sticky="nsew")
+
+        # --- Row 2: MySQL / MariaDB ---
+        self.db_mod_lbl = ttk.Label(grid_frame, text="MySQL", style="Inactive.TLabel", padding=4)
+        self.db_mod_lbl.grid(row=2, column=0, padx=1, pady=1, sticky="nsew")
+
+        self.db_pid_lbl = ttk.Label(grid_frame, text="", style="Cell.TLabel")
+        self.db_pid_lbl.grid(row=2, column=1, padx=1, pady=1, sticky="nsew")
+
+        self.db_port_lbl = ttk.Label(grid_frame, text="", style="Cell.TLabel")
+        self.db_port_lbl.grid(row=2, column=2, padx=1, pady=1, sticky="nsew")
+
+        self.db_act_btn = ttk.Button(grid_frame, text="Start", style="Matrix.TButton", command=self.toggle_mysql)
+        self.db_act_btn.grid(row=2, column=3, padx=1, pady=1, sticky="nsew")
+
+        self.db_adm_btn = ttk.Button(grid_frame, text="Admin", style="Action.TButton", command=lambda: webbrowser.open("http://localhost/phpmyadmin"))
+        self.db_adm_btn.grid(row=2, column=4, padx=1, pady=1, sticky="nsew")
+
+        self.db_cfg_btn = ttk.Button(grid_frame, text="Config", style="Action.TButton", command=self.open_mysql_conf)
+        self.db_cfg_btn.grid(row=2, column=5, padx=1, pady=1, sticky="nsew")
+
+        self.db_log_btn = ttk.Button(grid_frame, text="Logs", style="Action.TButton", command=self.open_mysql_logs)
+        self.db_log_btn.grid(row=2, column=6, padx=1, pady=1, sticky="nsew")
+
+        # Right: Side Control Buttons
+        side_frame = ttk.Frame(main_container)
+        side_frame.pack(side="right", fill="y", padx=(10, 0))
+
+        ttk.Button(side_frame, text="Start All", style="Matrix.TButton", width=15, command=self.start_all).pack(fill="x", pady=1)
+        ttk.Button(side_frame, text="Stop All", style="Stop.TButton", width=15, command=self.stop_all).pack(fill="x", pady=1)
+        ttk.Button(side_frame, text="Restart All", style="Action.TButton", width=15, command=self.restart_all).pack(fill="x", pady=1)
+        ttk.Button(side_frame, text="Explorer (www)", style="Action.TButton", width=15, command=self.open_web_root).pack(fill="x", pady=1)
+        ttk.Button(side_frame, text="phpMyAdmin", style="Action.TButton", width=15, command=lambda: webbrowser.open("http://localhost/phpmyadmin")).pack(fill="x", pady=1)
+        ttk.Button(side_frame, text="Quit", style="Action.TButton", width=15, command=self.destroy).pack(fill="x", pady=1)
+
+        # Bottom Console
+        log_frame = ttk.Frame(self)
+        log_frame.pack(fill="both", expand=True, padx=12, pady=(6, 12))
+
+        log_hdr = tk.Label(log_frame, text="SYSTEM LOG", font=("Consolas", 8, "bold"), bg="#050505", fg="#555555", anchor="w")
+        log_hdr.pack(fill="x", pady=(0, 2))
+
+        self.log_text = scrolledtext.ScrolledText(
+            log_frame,
+            wrap="none",
+            height=10,
+            bg="#000000",
+            fg="#00ff66",
+            insertbackground="#00ff66",
+            font=("Consolas", 8),
+            relief="solid",
+            borderwidth=1,
+            highlightthickness=1,
+            highlightcolor="#1a3a25",
+            highlightbackground="#111813"
+        )
+        self.log_text.pack(fill="both", expand=True)
+
+    def log(self, text, module="System"):
+        t = time.strftime("%H:%M:%S")
+        self.log_text.insert("end", f"[{t}] [{module}] {text}\n")
+        self.log_text.see("end")
+
+    def is_active(self, service):
+        try:
+            res = subprocess.run(["systemctl", "is-active", service], capture_output=True, text=True)
+            return res.stdout.strip() == "active"
+        except Exception:
+            return False
+
+    def get_pids(self, proc_name):
+        try:
+            res = subprocess.run(["pgrep", "-x", proc_name], capture_output=True, text=True)
+            pids = res.stdout.strip().split()
+            if pids:
+                return ", ".join(pids[:2]) + ("..." if len(pids) > 2 else "")
+            return ""
+        except Exception:
+            return ""
+
+    def refresh_status(self):
+        # Apache
+        ap_on = self.is_active(self.apache_service)
+        if ap_on:
+            self.ap_mod_lbl.config(style="Active.TLabel")
+            proc = "apache2" if self.apache_service == "apache2" else "httpd"
+            self.ap_pid_lbl.config(text=self.get_pids(proc))
+            self.ap_port_lbl.config(text="80, 443")
+            self.ap_act_btn.config(text="Stop", style="Stop.TButton")
+        else:
+            self.ap_mod_lbl.config(style="Inactive.TLabel")
+            self.ap_pid_lbl.config(text="")
+            self.ap_port_lbl.config(text="")
+            self.ap_act_btn.config(text="Start", style="Matrix.TButton")
+
+        # MySQL / MariaDB
+        db_on = self.is_active(self.mysql_service)
+        if db_on:
+            self.db_mod_lbl.config(style="Active.TLabel")
+            proc = "mariadbd" if self.mysql_service == "mariadb" else "mysqld"
+            self.db_pid_lbl.config(text=self.get_pids(proc))
+            self.db_port_lbl.config(text="3306")
+            self.db_act_btn.config(text="Stop", style="Stop.TButton")
+        else:
+            self.db_mod_lbl.config(style="Inactive.TLabel")
+            self.db_pid_lbl.config(text="")
+            self.db_port_lbl.config(text="")
+            self.db_act_btn.config(text="Start", style="Matrix.TButton")
+
+    def auto_refresh(self):
+        self.refresh_status()
+        self.after(2000, self.auto_refresh)
+
+    def _get_privilege_cmd(self, cmd_list):
+        if os.geteuid() == 0:
+            return cmd_list
+        if shutil.which("pkexec"):
+            return ["pkexec"] + cmd_list
+        return ["sudo"] + cmd_list
+
+    def toggle_apache(self):
+        action = "stop" if self.is_active(self.apache_service) else "start"
+        cmd = self._get_privilege_cmd(["systemctl", action, self.apache_service])
+        self._run_async(cmd, f"Executing: {self.apache_service} {action}", "Apache")
+
+    def toggle_mysql(self):
+        action = "stop" if self.is_active(self.mysql_service) else "start"
+        cmd = self._get_privilege_cmd(["systemctl", action, self.mysql_service])
+        self._run_async(cmd, f"Executing: {self.mysql_service} {action}", "MySQL")
+
+    def start_all(self):
+        cmd = self._get_privilege_cmd(["systemctl", "start", self.apache_service, self.mysql_service])
+        self._run_async(cmd, "Starting Apache and MySQL...", "System")
+
+    def stop_all(self):
+        cmd = self._get_privilege_cmd(["systemctl", "stop", self.apache_service, self.mysql_service])
+        self._run_async(cmd, "Stopping Apache and MySQL...", "System")
+
+    def restart_all(self):
+        cmd = self._get_privilege_cmd(["systemctl", "restart", self.apache_service, self.mysql_service])
+        self._run_async(cmd, "Restarting Apache and MySQL...", "System")
+
+    def open_web_root(self):
+        for path in ["/var/www/html", "/srv/http", "/var/www"]:
+            if os.path.exists(path):
+                subprocess.Popen(["xdg-open", path])
+                self.log(f"Opened web root: {path}", "System")
+                return
+        self.log("Error: Web root directory not found", "System")
+
+    def _open_file_or_dir(self, paths, module_name):
+        for path in paths:
+            if os.path.exists(path):
+                if os.path.isdir(path):
+                    subprocess.Popen(["xdg-open", path])
+                    self.log(f"Opened {path}", module_name)
+                    return
+                for editor in ["xdg-open", "gedit", "kate", "code", "mousepad", "nano"]:
+                    try:
+                        subprocess.Popen([editor, path])
+                        self.log(f"Opened {path}", module_name)
+                        return
+                    except Exception:
+                        continue
+        self.log(f"Could not locate file for {module_name}", module_name)
+
+    def open_apache_conf(self):
+        self._open_file_or_dir([
+            "/etc/apache2/apache2.conf",
+            "/etc/httpd/conf/httpd.conf",
+            "/etc/apache2/httpd.conf"
+        ], "Apache")
+
+    def open_mysql_conf(self):
+        self._open_file_or_dir([
+            "/etc/mysql/mariadb.cnf",
+            "/etc/mysql/my.cnf",
+            "/etc/my.cnf",
+            "/etc/mysql/mysql.conf.d/mysqld.cnf"
+        ], "MySQL")
+
+    def open_apache_logs(self):
+        self._open_file_or_dir([
+            "/var/log/apache2",
+            "/var/log/httpd"
+        ], "Apache")
+
+    def open_mysql_logs(self):
+        self._open_file_or_dir([
+            "/var/log/mysql",
+            "/var/log/mariadb"
+        ], "MySQL")
+
+    def _run_async(self, cmd, msg, mod):
+        def task():
+            self.log(msg, mod)
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True)
+                if res.returncode == 0:
+                    status_str = "active" if "start" in cmd or "restart" in cmd else "stopped"
+                    self.log(f"Command successful ({status_str})", mod)
+                else:
+                    err = res.stderr.strip() or f"Process exited with code {res.returncode}"
+                    self.log(f"Error: {err}", mod)
+            except Exception as e:
+                self.log(f"Execution failed: {str(e)}", mod)
+            self.refresh_status()
+
+        threading.Thread(target=task, daemon=True).start()
+
+if __name__ == "__main__":
+    app = LampControlPanel()
+    app.mainloop()

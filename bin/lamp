@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+#
+# LAMP Server CLI Control Utility
+# Manage Apache, MariaDB/MySQL and PHP services from terminal.
+#
+
+set -e
+
+# Color definitions
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Auto-detect service names
+detect_apache() {
+    if systemctl list-unit-files apache2.service &>/dev/null; then
+        echo "apache2"
+    elif systemctl list-unit-files httpd.service &>/dev/null; then
+        echo "httpd"
+    else
+        echo "apache2"
+    fi
+}
+
+detect_mysql() {
+    if systemctl list-unit-files mariadb.service &>/dev/null; then
+        echo "mariadb"
+    elif systemctl list-unit-files mysql.service &>/dev/null; then
+        echo "mysql"
+    elif systemctl list-unit-files mysqld.service &>/dev/null; then
+        echo "mysqld"
+    else
+        echo "mariadb"
+    fi
+}
+
+APACHE_SVC=$(detect_apache)
+MYSQL_SVC=$(detect_mysql)
+
+run_priv() {
+    if [ "$EUID" -eq 0 ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+print_header() {
+    echo -e "${CYAN}${BOLD}LAMP Control Utility${NC} ${BLUE}[${APACHE_SVC} | ${MYSQL_SVC} | PHP]${NC}\n"
+}
+
+cmd_start() {
+    print_header
+    echo -e "${YELLOW}Starting LAMP services...${NC}"
+    run_priv systemctl start "$APACHE_SVC" "$MYSQL_SVC"
+    echo -e "${GREEN}[OK] Apache ($APACHE_SVC) and MariaDB/MySQL ($MYSQL_SVC) started successfully.${NC}"
+}
+
+cmd_stop() {
+    print_header
+    echo -e "${YELLOW}Stopping LAMP services...${NC}"
+    run_priv systemctl stop "$APACHE_SVC" "$MYSQL_SVC"
+    echo -e "${RED}[OK] Apache ($APACHE_SVC) and MariaDB/MySQL ($MYSQL_SVC) stopped.${NC}"
+}
+
+cmd_restart() {
+    print_header
+    echo -e "${YELLOW}Restarting LAMP services...${NC}"
+    run_priv systemctl restart "$APACHE_SVC" "$MYSQL_SVC"
+    echo -e "${GREEN}[OK] Apache ($APACHE_SVC) and MariaDB/MySQL ($MYSQL_SVC) restarted.${NC}"
+}
+
+cmd_status() {
+    print_header
+    echo -e "${BOLD}Service Status:${NC}"
+    
+    # Apache
+    if systemctl is-active --quiet "$APACHE_SVC"; then
+        AP_PID=$(pgrep -x "$APACHE_SVC" | head -n 2 | tr '\n' ' ')
+        echo -e "  - ${BOLD}Web Server (${APACHE_SVC}):${NC}      ${GREEN}[ACTIVE] (Running)${NC} [PID: ${AP_PID:-N/A}] [Ports: 80, 443]"
+    else
+        echo -e "  - ${BOLD}Web Server (${APACHE_SVC}):${NC}      ${RED}[INACTIVE] (Stopped)${NC}"
+    fi
+
+    # MySQL / MariaDB
+    if systemctl is-active --quiet "$MYSQL_SVC"; then
+        DB_PROC="mariadbd"
+        [ "$MYSQL_SVC" = "mysql" ] && DB_PROC="mysqld"
+        DB_PID=$(pgrep -x "$DB_PROC" | head -n 1)
+        echo -e "  - ${BOLD}Database (${MYSQL_SVC}):${NC}        ${GREEN}[ACTIVE] (Running)${NC} [PID: ${DB_PID:-N/A}] [Port: 3306]"
+    else
+        echo -e "  - ${BOLD}Database (${MYSQL_SVC}):${NC}        ${RED}[INACTIVE] (Stopped)${NC}"
+    fi
+
+    # PHP
+    if command -v php &>/dev/null; then
+        PHP_V=$(php -v | head -n 1 | awk '{print $2}')
+        echo -e "  - ${BOLD}PHP Engine:${NC}                 ${CYAN}PHP ${PHP_V}${NC}"
+    else
+        echo -e "  - ${BOLD}PHP Engine:${NC}                 ${YELLOW}Not installed in PATH${NC}"
+    fi
+
+    # Web Root
+    echo -e "  - ${BOLD}Web Root Directory:${NC}         ${BLUE}/var/www/html${NC}"
+    echo ""
+}
+
+cmd_gui() {
+    if command -v lamp-gui &>/dev/null; then
+        nohup lamp-gui >/dev/null 2>&1 &
+        echo -e "${GREEN}[OK] Launched LAMP Control Panel GUI.${NC}"
+    elif [ -f "$(dirname "$0")/lamp-gui" ]; then
+        nohup "$(dirname "$0")/lamp-gui" >/dev/null 2>&1 &
+        echo -e "${GREEN}[OK] Launched LAMP Control Panel GUI.${NC}"
+    else
+        echo -e "${RED}Error: lamp-gui binary not found in PATH.${NC}"
+        exit 1
+    fi
+}
+
+cmd_web() {
+    echo -e "${CYAN}Opening http://localhost in default browser...${NC}"
+    xdg-open "http://localhost" >/dev/null 2>&1 || sensible-browser "http://localhost" &
+}
+
+cmd_db() {
+    echo -e "${CYAN}Opening phpMyAdmin (http://localhost/phpmyadmin)...${NC}"
+    xdg-open "http://localhost/phpmyadmin" >/dev/null 2>&1 || sensible-browser "http://localhost/phpmyadmin" &
+}
+
+cmd_dir() {
+    for d in "/var/www/html" "/srv/http" "/var/www"; do
+        if [ -d "$d" ]; then
+            echo -e "${CYAN}Opening $d in file manager...${NC}"
+            xdg-open "$d" >/dev/null 2>&1 &
+            return 0
+        fi
+    done
+    echo -e "${RED}Error: Web root directory not found.${NC}"
+}
+
+cmd_logs() {
+    print_header
+    echo -e "${BOLD}Showing last 20 lines of Apache error log:${NC}"
+    if [ -f "/var/log/apache2/error.log" ]; then
+        run_priv tail -n 20 /var/log/apache2/error.log
+    elif [ -f "/var/log/httpd/error_log" ]; then
+        run_priv tail -n 20 /var/log/httpd/error_log
+    else
+        echo -e "${YELLOW}Apache log file not found.${NC}"
+    fi
+}
+
+cmd_help() {
+    print_header
+    echo -e "${BOLD}Usage:${NC} lamp <command>"
+    echo ""
+    echo -e "${BOLD}Commands:${NC}"
+    echo -e "  ${GREEN}start${NC}       Start all LAMP services (Apache & MariaDB/MySQL)"
+    echo -e "  ${RED}stop${NC}        Stop all LAMP services"
+    echo -e "  ${YELLOW}restart${NC}     Restart all LAMP services"
+    echo -e "  ${CYAN}status${NC}      Show live status, PIDs, listening ports and versions"
+    echo -e "  ${BLUE}gui${NC}         Launch the graphical desktop Control Panel"
+    echo -e "  ${BLUE}web${NC}         Open http://localhost in default web browser"
+    echo -e "  ${BLUE}db / pma${NC}    Open phpMyAdmin (http://localhost/phpmyadmin)"
+    echo -e "  ${BLUE}dir / www${NC}   Open web document root directory (/var/www/html)"
+    echo -e "  ${BLUE}logs${NC}        View recent web server log entries"
+    echo -e "  ${BLUE}help${NC}        Display this help message"
+    echo ""
+}
+
+case "$1" in
+    start)
+        cmd_start
+        ;;
+    stop)
+        cmd_stop
+        ;;
+    restart)
+        cmd_restart
+        ;;
+    status)
+        cmd_status
+        ;;
+    gui)
+        cmd_gui
+        ;;
+    web)
+        cmd_web
+        ;;
+    db|pma)
+        cmd_db
+        ;;
+    dir|www)
+        cmd_dir
+        ;;
+    logs|log)
+        cmd_logs
+        ;;
+    help|--help|-h|"")
+        cmd_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        cmd_help
+        exit 1
+        ;;
+esac

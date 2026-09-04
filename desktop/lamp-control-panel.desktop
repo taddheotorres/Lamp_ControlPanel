@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0
+Type=Application
+Name=LAMP Control Panel
+GenericName=LAMP Server Manager
+Comment=Manage Apache2, MariaDB/MySQL and PHP services with a graphical interface
+Exec=lamp-gui
+Icon=lamp-control
+Terminal=false
+Categories=Development;System;Settings;Network;
+Keywords=lamp;apache;mysql;mariadb;php;server;localhost;xampp;wamp;
+StartupNotify=true
