@@ -30,8 +30,9 @@ counted twice.
 
 ## Features
 
-- **Panel** in a flat monochrome style with a dot-matrix display font, light and dark themes, and red
-  kept as the only signal colour (running services, errors). It remembers your choice.
+- **Terminal-style panel**: ASCII block-letter banner, monospace everywhere, `[ command ]` buttons and an
+  animated ASCII field in the background, in black and red with a light theme too. It remembers your choice
+  and holds the background still if your system asks for reduced motion.
 - **Start, stop, restart** each service or all of them, and switch **start at boot** on or off.
 - **Live state**: running or not, systemd sub-state, main PID and which default ports are listening.
 - **Logs** from the journal, and one click to open each service's config file.
