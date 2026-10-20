@@ -1,4 +1,4 @@
-# crystalctl — your local stack, under glass
+# crystalctl — your local stack, one panel
 
 <div align="center">
 
@@ -30,7 +30,9 @@ counted twice.
 
 ## Features
 
-- **Liquid-glass panel** with light and dark themes in black and red; it remembers your choice.
+- **Terminal-style panel**: ASCII block-letter banner, monospace everywhere, `[ command ]` buttons and an
+  animated ASCII field in the background, in black and red with a light theme too. It remembers your choice
+  and holds the background still if your system asks for reduced motion.
 - **Start, stop, restart** each service or all of them, and switch **start at boot** on or off.
 - **Live state**: running or not, systemd sub-state, main PID and which default ports are listening.
 - **Logs** from the journal, and one click to open each service's config file.
