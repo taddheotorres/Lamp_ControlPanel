@@ -3,186 +3,205 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CRYSTAL//CTL</title>
+<title>crystalctl</title>
 <style>
+/* Monochrome, flat, thin rules and a dot grid; red is only ever a signal (running, errors, the brand dot). */
 :root {
-  --bg: #050203; --ink: #f4e3e3; --muted: #9a7d7f; --faint: #5c3a3d;
-  --red: #ff2a2a; --red-soft: #c0121a; --red-deep: #4a0508;
-  --glass: rgba(255, 255, 255, .055); --glass-strong: rgba(255, 255, 255, .09);
-  --edge: rgba(255, 255, 255, .13); --edge-hi: rgba(255, 255, 255, .28);
-  --shadow: 0 20px 60px rgba(0, 0, 0, .55);
-  --blob-a: rgba(192, 18, 26, .55); --blob-b: rgba(122, 10, 14, .6); --blob-c: rgba(255, 60, 60, .22);
+  --bg: #000; --surface: #0b0b0b; --raised: #141414; --ink: #f2f2f2; --muted: #8a8a8a; --faint: #3a3a3a;
+  --rule: #1f1f1f; --rule-strong: #2e2e2e; --grid: rgba(255, 255, 255, .07); --red: #ff2a2a;
   --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #f7eeee; --ink: #2a0a0d; --muted: #8a5a5e; --faint: #c9a7aa;
-  --red: #d10f1a; --red-soft: #e5323b; --red-deep: #ffd9db;
-  --glass: rgba(255, 255, 255, .5); --glass-strong: rgba(255, 255, 255, .68);
-  --edge: rgba(255, 255, 255, .75); --edge-hi: rgba(255, 255, 255, .95);
-  --shadow: 0 20px 50px rgba(120, 20, 30, .16);
-  --blob-a: rgba(255, 90, 100, .45); --blob-b: rgba(255, 170, 175, .6); --blob-c: rgba(209, 15, 26, .25);
+  --bg: #efefef; --surface: #fafafa; --raised: #fff; --ink: #0a0a0a; --muted: #6d6d6d; --faint: #c4c4c4;
+  --rule: #dcdcdc; --rule-strong: #c9c9c9; --grid: rgba(0, 0, 0, .09); --red: #e0141e;
   color-scheme: light;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg: #f7eeee; --ink: #2a0a0d; --muted: #8a5a5e; --faint: #c9a7aa;
-    --red: #d10f1a; --red-soft: #e5323b; --red-deep: #ffd9db;
-    --glass: rgba(255, 255, 255, .5); --glass-strong: rgba(255, 255, 255, .68);
-    --edge: rgba(255, 255, 255, .75); --edge-hi: rgba(255, 255, 255, .95);
-    --shadow: 0 20px 50px rgba(120, 20, 30, .16);
-    --blob-a: rgba(255, 90, 100, .45); --blob-b: rgba(255, 170, 175, .6); --blob-c: rgba(209, 15, 26, .25);
+    --bg: #efefef; --surface: #fafafa; --raised: #fff; --ink: #0a0a0a; --muted: #6d6d6d; --faint: #c4c4c4;
+    --rule: #dcdcdc; --rule-strong: #c9c9c9; --grid: rgba(0, 0, 0, .09); --red: #e0141e;
     color-scheme: light;
   }
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; }
+html, body { margin: 0; }
 body {
-  background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans);
-  overflow-x: hidden; transition: background .4s, color .4s;
+  min-height: 100vh; background-color: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans);
+  background-image: radial-gradient(var(--grid) 1px, transparent 1.2px); background-size: 18px 18px;
 }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 28px 24px 40px; }
 
-/* moving colour field behind the glass: the blur needs something to refract */
-.field { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
-.field i { position: absolute; border-radius: 50%; filter: blur(70px); animation: drift 26s ease-in-out infinite alternate; }
-.field i:nth-child(1) { width: 52vw; height: 52vw; left: -12vw; top: -14vw; background: var(--blob-a); }
-.field i:nth-child(2) { width: 44vw; height: 44vw; right: -10vw; top: 22vh; background: var(--blob-b); animation-duration: 32s; }
-.field i:nth-child(3) { width: 36vw; height: 36vw; left: 30vw; bottom: -18vw; background: var(--blob-c); animation-duration: 22s; }
-.field::after { /* faint scanlines keep the terminal feel */
-  content: ""; position: absolute; inset: 0; opacity: .035;
-  background: repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 3px);
-}
-@keyframes drift { to { transform: translate(6vw, 4vh) scale(1.12); } }
-@media (prefers-reduced-motion: reduce) { .field i { animation: none; } }
+/* dot-matrix text: SVG circles drawn from a 5x7 font, so it needs no font file */
+.dots { display: inline-block; vertical-align: middle; color: var(--ink); }
+.dots circle { fill: currentColor; }
+.dots .off { opacity: .1; }
+.red { color: var(--red); }
 
-.glass {
-  position: relative; background: var(--glass); border: 1px solid var(--edge); border-radius: 22px;
-  backdrop-filter: blur(26px) saturate(170%); -webkit-backdrop-filter: blur(26px) saturate(170%);
-  box-shadow: var(--shadow), inset 0 1px 0 var(--edge-hi), inset 0 -1px 0 rgba(255, 255, 255, .04);
-}
-.glass::before { /* specular sheen along the top edge */
-  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(160deg, rgba(255, 255, 255, .22), transparent 38%);
-  mix-blend-mode: overlay;
-}
+.mono { font-family: var(--mono); }
+.label { font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 
-.wrap { max-width: 1180px; margin: 0 auto; padding: 22px 22px 28px; display: grid; gap: 18px; }
-
-header.glass { display: flex; align-items: center; gap: 18px; padding: 16px 20px; flex-wrap: wrap; }
-.brand { font: 700 22px/1 var(--mono); letter-spacing: .04em; color: var(--red); text-shadow: 0 0 18px rgba(255, 42, 42, .35); }
-.brand small { display: block; margin-top: 6px; font: 500 11px var(--mono); color: var(--muted); letter-spacing: .12em; text-shadow: none; }
-.summary { font: 12px var(--mono); color: var(--muted); }
-.summary b { color: var(--ink); }
+header { display: grid; grid-template-columns: 1fr auto; gap: 18px 24px; align-items: end;
+  padding-bottom: 22px; border-bottom: 1px solid var(--rule-strong); }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand .pip { width: 12px; height: 12px; border-radius: 50%; background: var(--red); }
+.sub { margin-top: 10px; display: flex; gap: 18px; flex-wrap: wrap; }
+.counter { text-align: right; }
+.counter .label { margin-top: 8px; }
+.toolbar { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .spacer { flex: 1; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
 button, a.btn {
-  font: 600 12px var(--mono); color: var(--ink); text-decoration: none; cursor: pointer;
-  padding: 8px 13px; border-radius: 999px; border: 1px solid var(--edge);
-  background: var(--glass-strong); box-shadow: inset 0 1px 0 var(--edge-hi);
-  transition: transform .15s, background .2s, border-color .2s, box-shadow .2s;
+  font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; text-decoration: none;
+  color: var(--ink); background: transparent; border: 1px solid var(--rule-strong); border-radius: 999px;
+  padding: 9px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  transition: background .15s, color .15s, border-color .15s;
 }
-button:hover, a.btn:hover { border-color: var(--red-soft); transform: translateY(-1px); }
-button:active { transform: translateY(0) scale(.98); }
-button:focus-visible, a.btn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
-button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-button.primary { background: linear-gradient(180deg, var(--red), var(--red-soft)); color: #fff; border-color: transparent;
-  box-shadow: 0 6px 22px rgba(255, 42, 42, .35), inset 0 1px 0 rgba(255, 255, 255, .35); }
-button.ghost { background: transparent; box-shadow: none; }
-button.icon { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; font-size: 15px; }
+button:hover, a.btn:hover { border-color: var(--ink); }
+button:focus-visible, a.btn:focus-visible, input:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+button:disabled { opacity: .35; cursor: not-allowed; border-color: var(--rule-strong); }
+button.solid { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+button.solid:hover { background: transparent; color: var(--ink); }
+button .led { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+button.stop .led { background: var(--red); }
+button.round { width: 36px; height: 36px; padding: 0; justify-content: center; }
+.half { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid currentColor;
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%); }
 
-h2 { margin: 6px 4px 10px; font: 600 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-h2 span { color: var(--red); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+section { margin-top: 34px; }
+.head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.head .rule { flex: 1; height: 1px; background: var(--rule); }
 
-.card { padding: 16px 16px 14px; display: grid; gap: 12px; }
-.card .top { display: flex; align-items: center; gap: 10px; }
-.card .name { font-weight: 700; font-size: 16px; }
-.card .unit { font: 11px var(--mono); color: var(--muted); }
-.pill { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px;
-  font: 600 11px var(--mono); border: 1px solid var(--edge); background: var(--glass); }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
-.on .dot { background: var(--red); box-shadow: 0 0 0 0 rgba(255, 42, 42, .6); animation: pulse 1.8s infinite; }
-.on .pill { color: var(--red); border-color: rgba(255, 42, 42, .4); }
-@keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(255, 42, 42, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 42, 42, 0); } }
-@media (prefers-reduced-motion: reduce) { .on .dot { animation: none; } }
-.meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.meta .switch { margin-top: 4px; }
-.meta div { padding: 8px 10px; border-radius: 12px; background: var(--glass); border: 1px solid var(--edge); }
-.meta dt { font: 10px var(--mono); color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
-.meta dd { margin: 2px 0 0; font: 600 13px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; padding: 18px; display: grid; gap: 16px; }
+.card .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.card .name { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.card .unit { margin-top: 4px; font: 11px var(--mono); color: var(--muted); }
 
-.switch { display: inline-flex; align-items: center; gap: 8px; font: 11px var(--mono); color: var(--muted); cursor: pointer; }
-.switch input { appearance: none; width: 34px; height: 20px; border-radius: 999px; margin: 0; cursor: pointer;
-  background: var(--glass-strong); border: 1px solid var(--edge); position: relative; transition: background .2s; }
-.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
-  background: var(--ink); transition: transform .2s; }
-.switch input:checked { background: var(--red); }
-.switch input:checked::after { transform: translateX(14px); background: #fff; }
-.switch input:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+/* status strip, read like the Glyph lights: lit red when running, dim when not */
+.glyph { display: flex; gap: 4px; padding-top: 6px; }
+.glyph i { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
+.on .glyph i { background: var(--red); animation: sweep 2.4s infinite; }
+.on .glyph i:nth-child(2) { animation-delay: .15s; } .on .glyph i:nth-child(3) { animation-delay: .3s; }
+.on .glyph i:nth-child(4) { animation-delay: .45s; } .on .glyph i:nth-child(5) { animation-delay: .6s; }
+.on .glyph i:nth-child(6) { animation-delay: .75s; } .on .glyph i:nth-child(7) { animation-delay: .9s; }
+.on .glyph i:nth-child(8) { animation-delay: 1.05s; }
+@keyframes sweep { 0%, 60%, 100% { opacity: 1; } 30% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .on .glyph i { animation: none; } }
+.state { margin-top: 8px; text-align: right; }
+.on .state { color: var(--red); }
 
-.avail { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
-.avail .unit { margin-left: auto; }
+.meta { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.meta div { padding: 10px 0 10px 12px; border-left: 1px solid var(--rule); min-width: 0; }
+.meta div:first-child { border-left: 0; padding-left: 0; }
+.meta dd { margin: 6px 0 0; font: 500 13px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
-.console { padding: 0; overflow: hidden; }
-.console .bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--edge);
-  font: 600 11px var(--mono); letter-spacing: .12em; color: var(--muted); }
-.console pre { margin: 0; padding: 12px 16px; height: 190px; overflow: auto; font: 12px/1.55 var(--mono); white-space: pre-wrap; }
-.console .t { color: var(--faint); }
-.console .tag { color: var(--red); }
-.console .err { color: var(--red); font-weight: 700; }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: 500 13px var(--mono); }
+.switch input { appearance: none; margin: 0; width: 30px; height: 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--rule-strong); background: transparent; position: relative; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--muted); transition: transform .15s, background .15s; }
+.switch input:checked { border-color: var(--ink); }
+.switch input:checked::after { transform: translateX(14px); background: var(--red); }
 
-dialog { border: 0; padding: 0; background: transparent; color: var(--ink); width: min(880px, 92vw); }
-dialog::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: blur(4px); }
-dialog .glass { padding: 18px; display: grid; gap: 12px; background: var(--glass-strong); }
-dialog pre { margin: 0; max-height: 60vh; overflow: auto; padding: 12px; border-radius: 14px; background: rgba(0, 0, 0, .35);
-  color: #f4e3e3; font: 12px/1.5 var(--mono); white-space: pre-wrap; }
-dialog h3 { margin: 0; font: 700 15px var(--mono); }
-.note { font: 12px var(--mono); color: var(--muted); }
-.empty { padding: 18px; font: 13px var(--mono); color: var(--muted); }
+.list { border-top: 1px solid var(--rule); }
+.item { display: grid; grid-template-columns: 34px 1fr auto auto; gap: 14px; align-items: center;
+  padding: 12px 4px; border-bottom: 1px solid var(--rule); }
+.item .n { font: 11px var(--mono); color: var(--faint); }
+.item .name { font-weight: 500; }
+.item .via { font: 11px var(--mono); color: var(--muted); }
+
+.console { margin-top: 34px; border: 1px solid var(--rule); border-radius: 20px; overflow: hidden; background: #050505; }
+.console .bar { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 18px; border-bottom: 1px solid #1a1a1a; }
+.console .bar .label { color: #8a8a8a; }
+.console button { color: #f2f2f2; border-color: #2e2e2e; }
+.console pre { margin: 0; padding: 14px 18px; height: 200px; overflow: auto; color: #d8d8d8;
+  font: 12px/1.6 var(--mono); white-space: pre-wrap; }
+.console .t { color: #555; }
+.console .tag { color: #9a9a9a; }
+.console .err { color: #ff2a2a; }
+
+dialog { border: 1px solid var(--rule-strong); border-radius: 22px; padding: 0; width: min(860px, 92vw);
+  background: var(--surface); color: var(--ink); }
+dialog::backdrop { background: rgba(0, 0, 0, .6); }
+.dlg { padding: 20px; display: grid; gap: 14px; }
+.dlg pre { margin: 0; max-height: 58vh; overflow: auto; padding: 14px; border-radius: 14px; background: #050505;
+  color: #d8d8d8; font: 12px/1.55 var(--mono); white-space: pre-wrap; }
+.dlg .note { font: 12px var(--mono); color: var(--muted); }
+.dlg .row { display: flex; gap: 8px; justify-content: flex-end; }
+.empty { padding: 22px 0; font: 12px var(--mono); color: var(--muted); }
+
+@media (max-width: 640px) {
+  header { grid-template-columns: 1fr; }
+  .counter { text-align: left; }
+  .meta { grid-template-columns: repeat(2, 1fr); }
+  .meta div:nth-child(3) { border-left: 0; padding-left: 0; }
+}
 </style>
 </head>
 <body>
-<div class="field" aria-hidden="true"><i></i><i></i><i></i></div>
-
 <div class="wrap">
-  <header class="glass">
-    <div class="brand">CRYSTAL//CTL<small>WEB · SQL · NOSQL</small></div>
-    <div class="summary" id="summary">connecting…</div>
-    <div class="spacer"></div>
-    <div class="row">
-      <button class="primary" data-all="start">Start all</button>
+  <header>
+    <div>
+      <div class="brand"><span class="pip" aria-hidden="true"></span><span id="brand"></span></div>
+      <div class="sub label"><span>Web</span><span>SQL</span><span>NoSQL</span><span id="pm">pkg —</span></div>
+    </div>
+    <div class="counter">
+      <span id="count" aria-hidden="true"></span>
+      <div class="label" id="countLabel">running</div>
+    </div>
+    <div class="toolbar">
+      <button class="solid" data-all="start"><span class="led"></span>Start all</button>
       <button data-all="restart">Restart all</button>
-      <button data-all="stop">Stop all</button>
-      <button class="icon" id="theme" title="Switch light / dark" aria-label="Switch light or dark theme">◐</button>
+      <button class="stop" data-all="stop"><span class="led"></span>Stop all</button>
+      <span class="spacer"></span>
+      <span class="label" id="busy"></span>
+      <button class="round" id="theme" title="Light / dark" aria-label="Switch light or dark theme"><span class="half"></span></button>
     </div>
   </header>
 
-  <main id="sections"></main>
+  <main id="sections"><div class="empty">connecting…</div></main>
 
-  <section class="glass console" aria-label="Console">
-    <div class="bar">CONSOLE <span class="spacer"></span><button class="ghost" id="clear">clear</button></div>
+  <section class="console" aria-label="Console">
+    <div class="bar"><span class="label">Console</span><span class="spacer"></span><button id="clear">Clear</button></div>
     <pre id="out" aria-live="polite"></pre>
   </section>
 </div>
 
-<dialog id="dlg"><div class="glass">
-  <h3 id="dlgTitle"></h3>
+<dialog id="dlg"><div class="dlg">
+  <div class="label" id="dlgTitle"></div>
   <pre id="dlgBody"></pre>
   <div class="note" id="dlgNote"></div>
-  <div class="row" style="justify-content:flex-end">
-    <button id="dlgCancel">Close</button>
-    <button class="primary" id="dlgOk" hidden>Install</button>
-  </div>
+  <div class="row"><button id="dlgCancel">Close</button><button class="solid" id="dlgOk" hidden>Install</button></div>
 </div></dialog>
 
 <script>
+// 5x7 dot-matrix glyphs, one 5-bit row per number
+const FONT = {"A":[14,17,17,31,17,17,17],"B":[30,17,17,30,17,17,30],"C":[14,17,16,16,16,17,14],"D":[28,18,17,17,17,18,28],"E":[31,16,16,30,16,16,31],"F":[31,16,16,30,16,16,16],"G":[14,17,16,23,17,17,15],"H":[17,17,17,31,17,17,17],"I":[14,4,4,4,4,4,14],"J":[7,2,2,2,2,18,12],"K":[17,18,20,24,20,18,17],"L":[16,16,16,16,16,16,31],"M":[17,27,21,21,17,17,17],"N":[17,17,25,21,19,17,17],"O":[14,17,17,17,17,17,14],"P":[30,17,17,30,16,16,16],"Q":[14,17,17,17,21,18,13],"R":[30,17,17,30,20,18,17],"S":[15,16,16,14,1,1,30],"T":[31,4,4,4,4,4,4],"U":[17,17,17,17,17,17,14],"V":[17,17,17,17,17,10,4],"W":[17,17,17,21,21,21,10],"X":[17,17,10,4,10,17,17],"Y":[17,17,17,10,4,4,4],"Z":[31,1,2,4,8,16,31],"0":[14,17,19,21,25,17,14],"1":[4,12,4,4,4,4,14],"2":[14,17,1,2,4,8,31],"3":[31,2,4,2,1,17,14],"4":[2,6,10,18,31,2,2],"5":[31,16,30,1,1,17,14],"6":[6,8,16,30,17,17,14],"7":[31,1,2,4,8,8,8],"8":[14,17,17,14,17,17,14],"9":[14,17,17,15,1,2,12],"/":[0,1,2,4,8,16,0],"-":[0,0,0,31,0,0,0],".":[0,0,0,0,0,12,12],":":[0,12,12,0,12,12,0]," ":[0,0,0,0,0,0,0]};
 const TOKEN = location.hash.slice(1);
 history.replaceState(null, "", "/");  // keep the token out of the visible URL
 const $ = (s) => document.querySelector(s);
 const root = document.documentElement;
 let state = { services: [], kinds: [], busy: false }, consoleAt = 0;
+
+/* Render text as a 5x7 LED matrix. `off` also draws the unlit dots, like a display panel. */
+function dots(text, size = 4, off = false) {
+  const chars = String(text).toUpperCase().split("");
+  const pitch = size, cols = chars.length * 6 - 1;
+  let out = "";
+  chars.forEach((ch, i) => {
+    const rows = FONT[ch] || FONT[" "];
+    rows.forEach((bits, y) => {
+      for (let x = 0; x < 5; x++) {
+        const lit = bits & (16 >> x);
+        if (lit || off) out += `<circle class="${lit ? "" : "off"}" cx="${(i * 6 + x) * pitch + pitch / 2}" cy="${y * pitch + pitch / 2}" r="${pitch * 0.32}"/>`;
+      }
+    });
+  });
+  return `<svg class="dots" width="${cols * pitch}" height="${7 * pitch}" viewBox="0 0 ${cols * pitch} ${7 * pitch}" aria-label="${esc(text)}" role="img">${out}</svg>`;
+}
 
 async function api(path, body) {
   const res = await fetch(path, {
@@ -196,54 +215,67 @@ async function api(path, body) {
 }
 
 function esc(s) { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+const pad2 = (n) => String(n).padStart(2, "0");
 
 function card(s) {
   const on = s.active === "active";
-  return `<article class="glass card ${on ? "on" : ""}">
+  return `<article class="card ${on ? "on" : ""}">
     <div class="top">
       <div><div class="name">${esc(s.name)}</div><div class="unit">${esc(s.unit)}.service</div></div>
-      <span class="pill"><span class="dot"></span>${on ? "running" : esc(s.active)}</span>
+      <div><div class="glyph" aria-hidden="true">${"<i></i>".repeat(8)}</div><div class="label state">${on ? "running" : esc(s.active)}</div></div>
     </div>
     <dl class="meta">
-      <div><dt>PID</dt><dd>${s.pid ?? "—"}</dd></div>
-      <div><dt>Ports</dt><dd>${s.ports?.length ? s.ports.join(", ") : "—"}</dd></div>
-      <div><dt>State</dt><dd>${esc(s.sub || "—")}</dd></div>
-      <div><dt>Boot</dt><dd><label class="switch"><input type="checkbox" data-boot="${s.id}" ${s.enabled ? "checked" : ""}
+      <div><dt class="label">PID</dt><dd>${s.pid ?? "—"}</dd></div>
+      <div><dt class="label">Ports</dt><dd>${s.ports?.length ? s.ports.join(" ") : "—"}</dd></div>
+      <div><dt class="label">State</dt><dd>${esc(s.sub || "—")}</dd></div>
+      <div><dt class="label">Boot</dt><dd><label class="switch"><input type="checkbox" data-boot="${s.id}" ${s.enabled ? "checked" : ""}
         aria-label="Start ${esc(s.name)} at boot">${s.enabled ? "on" : "off"}</label></dd></div>
     </dl>
-    <div class="row">
-      <button class="${on ? "" : "primary"}" data-id="${s.id}" data-act="${on ? "stop" : "start"}">${on ? "Stop" : "Start"}</button>
+    <div class="actions">
+      ${on ? `<button class="stop" data-id="${s.id}" data-act="stop"><span class="led"></span>Stop</button>`
+           : `<button class="solid" data-id="${s.id}" data-act="start"><span class="led"></span>Start</button>`}
       <button data-id="${s.id}" data-act="restart" ${on ? "" : "disabled"}>Restart</button>
-      <button class="ghost" data-logs="${s.id}">Logs</button>
-      ${s.config ? `<button class="ghost" data-open="${s.id}" data-what="config">Config</button>` : ""}
-      ${s.admin ? `<a class="btn ghost" href="${esc(s.admin.url)}" target="_blank" rel="noopener">${esc(s.admin.label)}</a>` : ""}
+      <button data-logs="${s.id}">Logs</button>
+      ${s.config ? `<button data-open="${s.id}" data-what="config">Config</button>` : ""}
+      ${s.admin ? `<a class="btn" href="${esc(s.admin.url)}" target="_blank" rel="noopener">${esc(s.admin.label)} ↗</a>` : ""}
     </div>
   </article>`;
 }
 
-function availRow(s) {
-  return `<div class="glass avail">
-    <div><div class="name">${esc(s.name)}</div></div>
-    <span class="unit">${s.installable ? esc(state.pm) : "not in your distro's repos"}</span>
-    ${s.installable ? `<button data-install="${s.id}">Install</button>` : ""}
+function item(s, i) {
+  return `<div class="item">
+    <span class="n">${pad2(i + 1)}</span>
+    <span class="name">${esc(s.name)}</span>
+    <span class="via">${s.installable ? "via " + esc(state.pm) : "not in your distro's repos"}</span>
+    ${s.installable ? `<button data-install="${s.id}">Install</button>` : "<span></span>"}
   </div>`;
+}
+
+function head(n, label) {
+  return `<div class="head">${dots(pad2(n), 3)}<span class="label">${esc(label)}</span><span class="rule"></span></div>`;
 }
 
 function render() {
   const installed = state.services.filter((s) => s.installed);
   const running = installed.filter((s) => s.active === "active").length;
-  $("#summary").innerHTML = `<b>${running}</b>/${installed.length} running · pkg: <b>${esc(state.pm || "none")}</b>${state.busy ? " · <b>working…</b>" : ""}`;
-  let html = "";
+  $("#count").innerHTML = dots(`${pad2(running)}/${pad2(installed.length)}`, 6, true);
+  $("#count").firstChild.classList.toggle("red", running > 0);
+  $("#pm").textContent = `pkg ${state.pm || "none"}`;
+  $("#busy").textContent = state.busy ? "working…" : "";
+
+  let html = "", n = 0;
   for (const [kind, label] of state.kinds) {
     const mine = installed.filter((s) => s.kind === kind);
-    if (mine.length) html += `<h2><span>▸</span> ${esc(label)}</h2><div class="grid">${mine.map(card).join("")}</div>`;
+    if (mine.length) html += `<section>${head(++n, label)}<div class="grid">${mine.map(card).join("")}</div></section>`;
   }
-  if (!installed.length) html += `<div class="glass empty">No managed services installed yet. Pick one below.</div>`;
+  if (!installed.length) html += `<section>${head(++n, "Installed")}<div class="empty">Nothing managed yet. Install something below.</div></section>`;
   const rest = state.services.filter((s) => !s.installed);
   const panels = [{ id: "phpmyadmin", name: "phpMyAdmin", installable: !!state.pm }, { id: "adminer", name: "Adminer", installable: state.pm === "apt" }];
-  if (rest.length) html += `<h2><span>▸</span> Available</h2><div class="grid">${[...rest, ...panels].map(availRow).join("")}</div>`;
+  html += `<section>${head(++n, "Available")}<div class="list">${[...rest, ...panels].map(item).join("")}</div></section>`;
   $("#sections").innerHTML = html;
-  document.querySelectorAll("button[data-act], button[data-all], button[data-install], input[data-boot]").forEach((b) => (b.disabled = state.busy));
+  // header buttons persist across renders; card buttons are rebuilt, so only ever disable those
+  document.querySelectorAll("button[data-all]").forEach((b) => (b.disabled = state.busy));
+  if (state.busy) document.querySelectorAll("#sections button[data-act], #sections button[data-install], #sections input[data-boot]").forEach((b) => (b.disabled = true));
 }
 
 async function refresh() {
@@ -251,8 +283,7 @@ async function refresh() {
     state = await api("/api/status");
     if (state.theme && !root.dataset.theme) root.dataset.theme = state.theme;
     render();
-  }
-  catch (e) { $("#summary").textContent = "panel offline — relaunch crystalctl-gui"; }
+  } catch (e) { $("#busy").textContent = "offline — relaunch crystalctl-gui"; }
 }
 
 async function pollConsole() {
@@ -262,7 +293,7 @@ async function pollConsole() {
     if (lines.length) {
       const out = $("#out");
       out.insertAdjacentHTML("beforeend", lines.map((l) =>
-        `<span class="t">${l.t}</span> <span class="${l.tag === "err" ? "err" : "tag"}">[${esc(l.tag)}]</span> ${esc(l.text)}\n`).join(""));
+        `<span class="t">${l.t}</span> <span class="${l.tag === "err" ? "err" : "tag"}">${esc(l.tag)}</span>  ${esc(l.text)}\n`).join(""));
       out.scrollTop = out.scrollHeight;
       refresh();
     }
@@ -303,13 +334,13 @@ document.addEventListener("change", (e) => {
 });
 $("#dlgCancel").onclick = () => $("#dlg").close();
 $("#clear").onclick = () => ($("#out").textContent = "");
-
 $("#theme").onclick = () => {
   const dark = root.dataset.theme ? root.dataset.theme === "dark" : !matchMedia("(prefers-color-scheme: light)").matches;
   root.dataset.theme = dark ? "light" : "dark";
   api("/api/theme", { theme: root.dataset.theme }).catch(() => {});
 };
 
+$("#brand").innerHTML = dots("CRYSTAL/CTL", 5);
 refresh(); pollConsole();
 setInterval(refresh, 4000);
 setInterval(pollConsole, 1200);
