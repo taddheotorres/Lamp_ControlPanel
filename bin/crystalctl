@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""lamp — manage Apache, Nginx, PHP-FPM, MariaDB, MySQL, PostgreSQL, MongoDB, Redis and Memcached."""
+"""crystalctl — manage Apache, Nginx, PHP-FPM, MariaDB, MySQL, PostgreSQL, MongoDB, Redis and Memcached."""
 
 import os
 import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.realpath(__file__))
-sys.path[:0] = [os.path.join(HERE, "..", "lib"), "/usr/local/lib/lamp-control"]
-import lamp_core as core  # noqa: E402
+sys.path[:0] = [os.path.join(HERE, "..", "lib"), "/usr/local/lib/crystalctl"]
+import crystal_core as core  # noqa: E402
 
 TTY = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 RED, DIM, BOLD, GREY, NC = (("\033[38;5;196m", "\033[38;5;52m", "\033[1m", "\033[38;5;244m", "\033[0m")
@@ -15,7 +15,7 @@ RED, DIM, BOLD, GREY, NC = (("\033[38;5;196m", "\033[38;5;52m", "\033[1m", "\033
 
 
 def header():
-    print(f"{RED}{BOLD}LAMP//CTL{NC} {GREY}web · sql · nosql{NC}\n")
+    print(f"{RED}{BOLD}CRYSTAL//CTL{NC} {GREY}web · sql · nosql{NC}\n")
 
 
 def die(msg):
@@ -32,7 +32,7 @@ def cmd_status(_args):
     header()
     rows = [s for s in core.status() if s["installed"]]
     if not rows:
-        print(f"{GREY}No managed services installed. Try `lamp list`.{NC}")
+        print(f"{GREY}No managed services installed. Try `crystalctl list`.{NC}")
         return
     print(f"{BOLD}{'SERVICE':<16}{'UNIT':<16}{'STATE':<12}{'BOOT':<7}{'PID':<9}PORTS{NC}")
     for s in rows:
@@ -54,7 +54,7 @@ def cmd_list(_args):
             if s["installed"]:
                 tag = f"{RED}installed{NC}"
             elif s["installable"]:
-                tag = f"{GREY}lamp install {s['id']}{NC}"
+                tag = f"{GREY}crystalctl install {s['id']}{NC}"
             else:
                 tag = f"{DIM}not in this distro's repos{NC}"
             print(f"  {s['id']:<12}{s['name']:<16}{tag}")
@@ -69,16 +69,16 @@ def targets(args):
         try:
             core.by_id(i)
         except KeyError:
-            die(f"unknown service '{i}' (see `lamp list`)")
+            die(f"unknown service '{i}' (see `crystalctl list`)")
     return ids, units
 
 
 def cmd_action(action, args):
     if action in ("enable", "disable") and not args:
-        die(f"usage: lamp {action} <service>")
+        die(f"usage: crystalctl {action} <service>")
     ids, units = targets(args)
     if not ids:
-        die("no managed services installed (see `lamp list`)")
+        die("no managed services installed (see `crystalctl list`)")
     failed = 0
     for i in ids:
         try:
@@ -92,7 +92,7 @@ def cmd_action(action, args):
 
 def cmd_logs(args):
     if not args:
-        die("usage: lamp logs <service> [lines]")
+        die("usage: crystalctl logs <service> [lines]")
     units = core.unit_files(core.Runner())
     unit = core.find_unit(core.by_id(args[0]), units) if args[0] in [s.id for s in core.CATALOG] else None
     if not unit:
@@ -106,12 +106,12 @@ def cmd_install(args):
     yes = "-y" in args
     names = [a for a in args if a != "-y"]
     if len(names) != 1:
-        die("usage: lamp install <service|phpmyadmin|adminer> [-y]")
+        die("usage: crystalctl install <service|phpmyadmin|adminer> [-y]")
     pm = core.package_manager(core.Runner())
     try:
         cmds = core.install_commands(names[0], pm)
     except KeyError:
-        die(f"unknown service '{names[0]}' (see `lamp list`)")
+        die(f"unknown service '{names[0]}' (see `crystalctl list`)")
     except ValueError as e:
         die(str(e))
     header()
@@ -124,14 +124,14 @@ def cmd_install(args):
     for c in cmds:
         if run_visible(core.privileged(c)) != 0:
             die("install failed; nothing after this step was run")
-    print(f"\n{RED}done.{NC} Start it with `lamp start {names[0]}` or at boot with `lamp enable {names[0]}`.")
+    print(f"\n{RED}done.{NC} Start it with `crystalctl start {names[0]}` or at boot with `crystalctl enable {names[0]}`.")
 
 
 def cmd_gui(_args):
-    gui = os.path.join(HERE, "lamp-gui")
-    subprocess.Popen([gui if os.path.exists(gui) else "lamp-gui"], stdout=subprocess.DEVNULL,
+    gui = os.path.join(HERE, "crystalctl-gui")
+    subprocess.Popen([gui if os.path.exists(gui) else "crystalctl-gui"], stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, start_new_session=True)
-    print("Launched LAMP//CTL panel.")
+    print("Launched CRYSTAL//CTL panel.")
 
 
 def cmd_open(target):
@@ -140,7 +140,7 @@ def cmd_open(target):
 
 def cmd_help(_args=None):
     header()
-    print(f"""{BOLD}usage:{NC} lamp <command> [service...]
+    print(f"""{BOLD}usage:{NC} crystalctl <command> [service...]
 
   {RED}status{NC}                  live state, boot, PID and listening ports
   {RED}list{NC}                    every supported service and how to install it
@@ -150,6 +150,7 @@ def cmd_help(_args=None):
   {RED}install{NC} <s> [-y]        install with apt, dnf, pacman or zypper
   {RED}gui{NC}                     open the graphical panel
   {RED}web{NC} | {RED}dir{NC}               open http://localhost | the web root
+  {RED}db{NC}                      open phpMyAdmin
 
 services: {', '.join(s.id for s in core.CATALOG)}
 panels:   {', '.join(core.ADMIN_PANELS)} (install only)""")
@@ -162,6 +163,7 @@ def main(argv):
     handlers = {"status": cmd_status, "list": cmd_list, "logs": cmd_logs, "log": cmd_logs,
                 "install": cmd_install, "gui": cmd_gui, "help": cmd_help, "-h": cmd_help, "--help": cmd_help,
                 "web": lambda _a: cmd_open("http://localhost"),
+                "db": lambda _a: cmd_open("http://localhost/phpmyadmin"),
                 "dir": lambda _a: cmd_open(next((d for d in ("/var/www/html", "/srv/http", "/var/www")
                                                  if os.path.isdir(d)), "/var/www"))}
     if cmd not in handlers:

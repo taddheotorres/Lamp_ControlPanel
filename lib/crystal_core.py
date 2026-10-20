@@ -1,5 +1,5 @@
 """
-Service catalog and system access shared by the `lamp` CLI and the `lamp-gui` panel.
+Service catalog and system access shared by the `crystalctl` CLI and the `crystalctl-gui` panel.
 
 Everything that touches the system goes through `Runner`, so tests can swap it for a fake.
 """
