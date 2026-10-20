@@ -3,7 +3,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-import lamp_core as core  # noqa: E402
+import crystal_core as core  # noqa: E402
 
 UNIT_FILES = """\
 httpd.service                 enabled  disabled

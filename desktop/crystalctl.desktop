@@ -1,13 +1,12 @@
 [Desktop Entry]
-Encoding=UTF-8
 Version=1.0
 Type=Application
-Name=LAMP Control Panel
-GenericName=LAMP Server Manager
+Name=crystalctl
+GenericName=Local Stack Manager
 Comment=Manage Apache, Nginx, PHP-FPM, MariaDB, MySQL, PostgreSQL, MongoDB, Redis and Memcached
-Exec=lamp-gui
-Icon=lamp-control
+Exec=crystalctl-gui
+Icon=crystalctl
 Terminal=false
 Categories=Development;System;Settings;Network;
-Keywords=lamp;apache;nginx;php;mysql;mariadb;postgresql;mongodb;redis;valkey;memcached;server;localhost;xampp;
+Keywords=crystalctl;lamp;apache;nginx;php;mysql;mariadb;postgresql;mongodb;redis;valkey;memcached;server;localhost;xampp;
 StartupNotify=true
