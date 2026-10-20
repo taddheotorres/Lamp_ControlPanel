@@ -31,51 +31,32 @@ fi
 
 TARGET_USER="${SUDO_USER:-$USER}"
 
-# Detect package manager
+# The panel only needs Python 3.8+ and systemd; services themselves are installed later with `lamp install`
 detect_distro_and_install_deps() {
     echo -e "${BLUE}[1/5] Checking dependencies...${NC}"
-
-    if command -v apt-get &>/dev/null; then
-        echo -e "${CYAN}Detected Debian/Ubuntu base system.${NC}"
-        MISSING_PKGS=()
-        for pkg in python3 python3-tk apache2 mariadb-server php libapache2-mod-php php-mysql; do
-            if ! dpkg -l | grep -qw "$pkg"; then
-                MISSING_PKGS+=("$pkg")
-            fi
-        done
-
-        if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
-            echo -e "${YELLOW}The following recommended packages are not installed: ${MISSING_PKGS[*]}${NC}"
-            read -r -p "Do you want to install them now via apt? [Y/n] " response
-            response=${response:-Y}
-            if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-                DEBIAN_FRONTEND=noninteractive apt-get update
-                DEBIAN_FRONTEND=noninteractive apt-get install -y "${MISSING_PKGS[@]}"
-            fi
-        else
-            echo -e "${GREEN}[OK] All core LAMP packages and Python Tkinter are installed.${NC}"
-        fi
-
-    elif command -v pacman &>/dev/null; then
-        echo -e "${CYAN}Detected Arch Linux base system.${NC}"
-        if ! command -v python3 &>/dev/null || ! pacman -Qi tk &>/dev/null; then
-            echo -e "${YELLOW}Installing Python & Tkinter via pacman...${NC}"
-            pacman -S --noconfirm --needed python tk apache mariadb php php-apache
-        fi
-
+    if python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' 2>/dev/null; then
+        echo -e "${GREEN}[OK] $(python3 --version) found.${NC}"
+    elif command -v apt-get &>/dev/null; then
+        apt-get update && apt-get install -y python3
     elif command -v dnf &>/dev/null; then
-        echo -e "${CYAN}Detected Fedora/RHEL base system.${NC}"
-        if ! command -v python3 &>/dev/null || ! rpm -q python3-tkinter &>/dev/null; then
-            echo -e "${YELLOW}Installing Python & Tkinter via dnf...${NC}"
-            dnf install -y python3 python3-tkinter httpd mariadb-server php php-mysqlnd
-        fi
+        dnf install -y python3
+    elif command -v pacman &>/dev/null; then
+        pacman -S --needed --noconfirm python
+    elif command -v zypper &>/dev/null; then
+        zypper --non-interactive install python3
+    else
+        echo -e "${RED}Python 3.8+ is required. Install it and run this script again.${NC}"
+        exit 1
     fi
+    command -v systemctl &>/dev/null || { echo -e "${RED}systemd is required.${NC}"; exit 1; }
 }
 
 install_binaries() {
     echo -e "\n${BLUE}[2/5] Installing CLI and GUI binaries...${NC}"
     install -m 755 "${SCRIPT_DIR}/bin/lamp" /usr/local/bin/lamp
     install -m 755 "${SCRIPT_DIR}/bin/lamp-gui" /usr/local/bin/lamp-gui
+    install -D -m 644 "${SCRIPT_DIR}/lib/lamp_core.py" /usr/local/lib/lamp-control/lamp_core.py
+    install -D -m 644 "${SCRIPT_DIR}/gui/panel.html" /usr/local/share/lamp-control/panel.html
     echo -e "${GREEN}[OK] Installed /usr/local/bin/lamp (CLI)${NC}"
     echo -e "${GREEN}[OK] Installed /usr/local/bin/lamp-gui (GUI)${NC}"
 }
