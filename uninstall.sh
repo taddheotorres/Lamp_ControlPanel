@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# LAMP Control Panel & CLI Uninstaller
+# crystalctl uninstaller
 #
 
 set -e
@@ -17,20 +17,18 @@ if [ "$EUID" -ne 0 ]; then
     exec sudo "$0" "$@"
 fi
 
-echo -e "${RED}${BOLD}Uninstalling LAMP Control Panel...${NC}\n"
+echo -e "${RED}${BOLD}Uninstalling crystalctl...${NC}\n"
 
-# Remove binaries
-rm -f /usr/local/bin/lamp
-rm -f /usr/local/bin/lamp-gui
-rm -rf /usr/local/lib/lamp-control /usr/local/share/lamp-control
-echo -e "${GREEN}[OK] Removed /usr/local/bin/lamp and /usr/local/bin/lamp-gui${NC}"
+# Current names, plus the ones used before the rename to crystalctl
+rm -rf /usr/local/bin/crystalctl /usr/local/bin/crystalctl-gui /usr/local/lib/crystalctl /usr/local/share/crystalctl \
+       /usr/local/bin/lamp /usr/local/bin/lamp-gui /usr/local/lib/lamp-control /usr/local/share/lamp-control
+echo -e "${GREEN}[OK] Removed crystalctl and crystalctl-gui${NC}"
 
-# Remove desktop entries and icons
-rm -f /usr/share/applications/lamp-control-panel.desktop
-rm -f /usr/share/applications/lamp-www.desktop
-rm -f /usr/share/icons/hicolor/scalable/apps/lamp-control.svg
-rm -f /usr/share/pixmaps/lamp-control.svg
-echo -e "${GREEN}[OK] Removed desktop shortcuts and application icons${NC}"
+rm -f /usr/share/applications/crystalctl.desktop /usr/share/applications/crystalctl-www.desktop \
+      /usr/share/icons/hicolor/scalable/apps/crystalctl.svg /usr/share/pixmaps/crystalctl.svg \
+      /usr/share/applications/lamp-control-panel.desktop /usr/share/applications/lamp-www.desktop \
+      /usr/share/icons/hicolor/scalable/apps/lamp-control.svg /usr/share/pixmaps/lamp-control.svg
+echo -e "${GREEN}[OK] Removed desktop shortcuts and icons${NC}"
 
 # Update desktop database
 if command -v update-desktop-database &>/dev/null; then
@@ -40,5 +38,5 @@ if command -v gtk-update-icon-cache &>/dev/null; then
     gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
 fi
 
-echo -e "\n${GREEN}${BOLD}[OK] LAMP Control Panel uninstalled successfully.${NC}"
-echo -e "${CYAN}Note: Your web files in /var/www/html and database data were preserved.${NC}"
+echo -e "\n${GREEN}${BOLD}[OK] crystalctl uninstalled.${NC}"
+echo -e "${CYAN}Note: Your web files, databases and ~/.config/crystalctl were kept.${NC}"

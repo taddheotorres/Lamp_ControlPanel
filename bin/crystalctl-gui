@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LAMP//CTL panel: a local web UI for the services in lamp_core.
+CRYSTAL//CTL panel: a local web UI for the services in crystal_core.
 
 The server binds to 127.0.0.1 only, and every API call must carry the per-launch token and a
 127.0.0.1 Host header, so other websites (or DNS-rebinding tricks) cannot start, stop or install anything.
@@ -20,12 +20,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 HERE = os.path.dirname(os.path.realpath(__file__))
-sys.path[:0] = [os.path.join(HERE, "..", "lib"), "/usr/local/lib/lamp-control"]
-import lamp_core as core  # noqa: E402
+sys.path[:0] = [os.path.join(HERE, "..", "lib"), "/usr/local/lib/crystalctl"]
+import crystal_core as core  # noqa: E402
 
-PANEL_PATHS = [os.path.join(HERE, "..", "gui", "panel.html"), "/usr/local/share/lamp-control/panel.html"]
+PANEL_PATHS = [os.path.join(HERE, "..", "gui", "panel.html"), "/usr/local/share/crystalctl/panel.html"]
 SETTINGS = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
-                        "lamp-control", "settings.json")
+                        "crystalctl", "settings.json")
 IDLE_EXIT_SECONDS = 45  # the page pings every 5 s; no ping for this long means the window was closed
 
 
@@ -105,7 +105,7 @@ class App:
         code, out, err = self.runner.run(core.logs_command(unit, 200))
         if not out.strip() or "No entries" in out:
             return (out or err) + "\nNo journal entries visible. Your user may need the 'systemd-journal' group, " \
-                                  "or try `lamp logs " + service_id + "` in a terminal."
+                                  "or try `crystalctl logs " + service_id + "` in a terminal."
         return out
 
     @staticmethod
@@ -154,7 +154,7 @@ def make_handler(app):
 
         def trusted(self):
             host_ok = self.headers.get("Host") == f"127.0.0.1:{app.port}"
-            token_ok = hmac.compare_digest(self.headers.get("X-Lamp-Token", ""), app.token)
+            token_ok = hmac.compare_digest(self.headers.get("X-Crystal-Token", ""), app.token)
             return host_ok and token_ok
 
         def body(self):

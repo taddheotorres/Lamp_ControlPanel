@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LAMP//CTL</title>
+<title>CRYSTAL//CTL</title>
 <style>
 :root {
   --bg: #050203; --ink: #f4e3e3; --muted: #9a7d7f; --faint: #5c3a3d;
@@ -148,7 +148,7 @@ dialog h3 { margin: 0; font: 700 15px var(--mono); }
 
 <div class="wrap">
   <header class="glass">
-    <div class="brand">LAMP//CTL<small>WEB · SQL · NOSQL</small></div>
+    <div class="brand">CRYSTAL//CTL<small>WEB · SQL · NOSQL</small></div>
     <div class="summary" id="summary">connecting…</div>
     <div class="spacer"></div>
     <div class="row">
@@ -187,7 +187,7 @@ let state = { services: [], kinds: [], busy: false }, consoleAt = 0;
 async function api(path, body) {
   const res = await fetch(path, {
     method: body ? "POST" : "GET",
-    headers: { "X-Lamp-Token": TOKEN, "Content-Type": "application/json" },
+    headers: { "X-Crystal-Token": TOKEN, "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
@@ -252,7 +252,7 @@ async function refresh() {
     if (state.theme && !root.dataset.theme) root.dataset.theme = state.theme;
     render();
   }
-  catch (e) { $("#summary").textContent = "panel offline — relaunch lamp-gui"; }
+  catch (e) { $("#summary").textContent = "panel offline — relaunch crystalctl-gui"; }
 }
 
 async function pollConsole() {
