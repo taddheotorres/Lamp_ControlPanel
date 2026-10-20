@@ -39,7 +39,7 @@ $dirs = array_filter(glob('*'), function($f) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Localhost // LAMP Control</title>
+    <title>Localhost // crystalctl</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Consolas", "Courier New", monospace; }
         body { background: #050505; color: #e5e7eb; padding: 40px 20px; font-size: 13px; line-height: 1.5; }
@@ -78,7 +78,7 @@ $dirs = array_filter(glob('*'), function($f) {
 <div class="wrapper">
     <div class="header">
         <div>
-            <h1>LOCAL SERVER // LAMP CONTROL</h1>
+            <h1>LOCAL SERVER // CRYSTAL//CTL</h1>
             <div class="sub">Apache2 | MariaDB/MySQL | PHP <?= htmlspecialchars($php_version) ?></div>
         </div>
         <div>
@@ -168,7 +168,7 @@ $dirs = array_filter(glob('*'), function($f) {
     </div>
 
     <div class="footer">
-        <div>LAMP CONTROL PANEL | LINUX</div>
+        <div>CRYSTALCTL | LINUX</div>
         <div>ROOT: /var/www/html</div>
     </div>
 </div>

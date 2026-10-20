@@ -10,8 +10,8 @@ from http.server import ThreadingHTTPServer
 from test_core import FakeRunner
 
 HERE = os.path.dirname(__file__)
-loader = importlib.machinery.SourceFileLoader("lamp_gui", os.path.join(HERE, "..", "bin", "lamp-gui"))
-spec = importlib.util.spec_from_loader("lamp_gui", loader)
+loader = importlib.machinery.SourceFileLoader("crystalctl_gui", os.path.join(HERE, "..", "bin", "crystalctl-gui"))
+spec = importlib.util.spec_from_loader("crystalctl_gui", loader)
 gui = importlib.util.module_from_spec(spec)
 loader.exec_module(gui)
 
@@ -32,7 +32,7 @@ class PanelApiTest(unittest.TestCase):
     def call(self, path, body=None, token=None, host=None):
         req = urllib.request.Request(f"http://127.0.0.1:{self.app.port}{path}",
                                      data=json.dumps(body).encode() if body is not None else None)
-        req.add_header("X-Lamp-Token", self.app.token if token is None else token)
+        req.add_header("X-Crystal-Token", self.app.token if token is None else token)
         if host:
             req.add_header("Host", host)
         try:

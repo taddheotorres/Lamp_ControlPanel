@@ -1,4 +1,4 @@
-# LAMP//CTL — LAMP Control Panel & CLI for Linux
+# crystalctl — your local stack, under glass
 
 <div align="center">
 
@@ -9,13 +9,15 @@
 
 **One panel and one command for your whole local stack: web servers, SQL and NoSQL databases.**
 
+<sub>Formerly Lamp_ControlPanel. Running `./install.sh` again removes the old `lamp` commands.</sub>
+
 ![Dark theme](assets/panel-dark.png)
 
 </div>
 
 ## What it manages
 
-| Group | Services | Install with `lamp install` |
+| Group | Services | Install with `crystalctl install` |
 |---|---|---|
 | Web | Apache, Nginx, PHP-FPM | apt · dnf · pacman · zypper |
 | SQL | MariaDB, MySQL, PostgreSQL | MySQL: apt and dnf only (not in Arch/openSUSE repos) |
@@ -42,19 +44,19 @@ counted twice.
 ## Install
 
 ```bash
-git clone https://github.com/taddheotorres/Lamp_ControlPanel.git
-cd Lamp_ControlPanel
+git clone https://github.com/taddheotorres/crystalctl.git
+cd crystalctl
 ./install.sh
 ```
 
-The installer copies `lamp` and `lamp-gui` to `/usr/local/bin`, the shared code to
-`/usr/local/lib/lamp-control`, the panel to `/usr/local/share/lamp-control`, and adds a desktop launcher.
+The installer copies `crystalctl` and `crystalctl-gui` to `/usr/local/bin`, the shared code to
+`/usr/local/lib/crystalctl`, the panel to `/usr/local/share/crystalctl`, and adds a desktop launcher.
 
 ## Usage
 
 ### Panel
 
-Open **LAMP Control Panel** from your app menu, or run `lamp gui`. It opens as an app window in
+Open **crystalctl** from your app menu, or run `crystalctl gui`. It opens as an app window in
 Chromium, Chrome, Brave or Edge if you have one, otherwise in your default browser. It closes itself
 about 45 seconds after you close the window.
 
@@ -63,19 +65,20 @@ about 45 seconds after you close the window.
 ### Terminal
 
 ```text
-lamp status                  live state, boot, PID and listening ports
-lamp list                    every supported service and how to install it
-lamp start|stop|restart [s]  act on the named services, or all installed ones
-lamp enable|disable <s>      start at boot (and now) / stop and remove from boot
-lamp logs <s> [lines]        recent journal entries
-lamp install <s> [-y]        install with apt, dnf, pacman or zypper
-lamp gui                     open the graphical panel
-lamp web | lamp dir          open http://localhost | the web root
+crystalctl status                  live state, boot, PID and listening ports
+crystalctl list                    every supported service and how to install it
+crystalctl start|stop|restart [s]  act on the named services, or all installed ones
+crystalctl enable|disable <s>      start at boot (and now) / stop and remove from boot
+crystalctl logs <s> [lines]        recent journal entries
+crystalctl install <s> [-y]        install with apt, dnf, pacman or zypper
+crystalctl gui                     open the graphical panel
+crystalctl web | crystalctl dir    open http://localhost | the web root
+crystalctl db                      open phpMyAdmin
 ```
 
 ```text
-$ lamp status
-LAMP//CTL web · sql · nosql
+$ crystalctl status
+CRYSTAL//CTL web · sql · nosql
 
 SERVICE         UNIT            STATE       BOOT   PID      PORTS
 Apache          httpd           ● running   yes    1204     80, 443
@@ -87,14 +90,14 @@ Redis / Valkey  valkey          ○ inactive  no     -        -
 
 - Ports are matched against each service's default ports. Without root, Linux does not say which
   process owns a socket, so a service on a custom port shows no port.
-- Reading the journal may need your user in the `systemd-journal` group; `lamp logs` runs it through sudo.
+- Reading the journal may need your user in the `systemd-journal` group; `crystalctl logs` runs it through sudo.
 - MariaDB and MySQL usually cannot be installed side by side; your package manager will refuse.
 
 ## Development
 
 ```bash
 python3 -m unittest discover -s tests   # no root and no services needed
-bin/lamp-gui --no-window                # prints the panel URL instead of opening a window
+bin/crystalctl-gui --no-window                # prints the panel URL instead of opening a window
 ```
 
 ## Uninstall
