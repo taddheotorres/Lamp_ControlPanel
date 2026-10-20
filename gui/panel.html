@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LAMP//CTL</title>
+<style>
+:root {
+  --bg: #050203; --ink: #f4e3e3; --muted: #9a7d7f; --faint: #5c3a3d;
+  --red: #ff2a2a; --red-soft: #c0121a; --red-deep: #4a0508;
+  --glass: rgba(255, 255, 255, .055); --glass-strong: rgba(255, 255, 255, .09);
+  --edge: rgba(255, 255, 255, .13); --edge-hi: rgba(255, 255, 255, .28);
+  --shadow: 0 20px 60px rgba(0, 0, 0, .55);
+  --blob-a: rgba(192, 18, 26, .55); --blob-b: rgba(122, 10, 14, .6); --blob-c: rgba(255, 60, 60, .22);
+  --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #f7eeee; --ink: #2a0a0d; --muted: #8a5a5e; --faint: #c9a7aa;
+  --red: #d10f1a; --red-soft: #e5323b; --red-deep: #ffd9db;
+  --glass: rgba(255, 255, 255, .5); --glass-strong: rgba(255, 255, 255, .68);
+  --edge: rgba(255, 255, 255, .75); --edge-hi: rgba(255, 255, 255, .95);
+  --shadow: 0 20px 50px rgba(120, 20, 30, .16);
+  --blob-a: rgba(255, 90, 100, .45); --blob-b: rgba(255, 170, 175, .6); --blob-c: rgba(209, 15, 26, .25);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f7eeee; --ink: #2a0a0d; --muted: #8a5a5e; --faint: #c9a7aa;
+    --red: #d10f1a; --red-soft: #e5323b; --red-deep: #ffd9db;
+    --glass: rgba(255, 255, 255, .5); --glass-strong: rgba(255, 255, 255, .68);
+    --edge: rgba(255, 255, 255, .75); --edge-hi: rgba(255, 255, 255, .95);
+    --shadow: 0 20px 50px rgba(120, 20, 30, .16);
+    --blob-a: rgba(255, 90, 100, .45); --blob-b: rgba(255, 170, 175, .6); --blob-c: rgba(209, 15, 26, .25);
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans);
+  overflow-x: hidden; transition: background .4s, color .4s;
+}
+
+/* moving colour field behind the glass: the blur needs something to refract */
+.field { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+.field i { position: absolute; border-radius: 50%; filter: blur(70px); animation: drift 26s ease-in-out infinite alternate; }
+.field i:nth-child(1) { width: 52vw; height: 52vw; left: -12vw; top: -14vw; background: var(--blob-a); }
+.field i:nth-child(2) { width: 44vw; height: 44vw; right: -10vw; top: 22vh; background: var(--blob-b); animation-duration: 32s; }
+.field i:nth-child(3) { width: 36vw; height: 36vw; left: 30vw; bottom: -18vw; background: var(--blob-c); animation-duration: 22s; }
+.field::after { /* faint scanlines keep the terminal feel */
+  content: ""; position: absolute; inset: 0; opacity: .035;
+  background: repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 3px);
+}
+@keyframes drift { to { transform: translate(6vw, 4vh) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .field i { animation: none; } }
+
+.glass {
+  position: relative; background: var(--glass); border: 1px solid var(--edge); border-radius: 22px;
+  backdrop-filter: blur(26px) saturate(170%); -webkit-backdrop-filter: blur(26px) saturate(170%);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--edge-hi), inset 0 -1px 0 rgba(255, 255, 255, .04);
+}
+.glass::before { /* specular sheen along the top edge */
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .22), transparent 38%);
+  mix-blend-mode: overlay;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 22px 22px 28px; display: grid; gap: 18px; }
+
+header.glass { display: flex; align-items: center; gap: 18px; padding: 16px 20px; flex-wrap: wrap; }
+.brand { font: 700 22px/1 var(--mono); letter-spacing: .04em; color: var(--red); text-shadow: 0 0 18px rgba(255, 42, 42, .35); }
+.brand small { display: block; margin-top: 6px; font: 500 11px var(--mono); color: var(--muted); letter-spacing: .12em; text-shadow: none; }
+.summary { font: 12px var(--mono); color: var(--muted); }
+.summary b { color: var(--ink); }
+.spacer { flex: 1; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+button, a.btn {
+  font: 600 12px var(--mono); color: var(--ink); text-decoration: none; cursor: pointer;
+  padding: 8px 13px; border-radius: 999px; border: 1px solid var(--edge);
+  background: var(--glass-strong); box-shadow: inset 0 1px 0 var(--edge-hi);
+  transition: transform .15s, background .2s, border-color .2s, box-shadow .2s;
+}
+button:hover, a.btn:hover { border-color: var(--red-soft); transform: translateY(-1px); }
+button:active { transform: translateY(0) scale(.98); }
+button:focus-visible, a.btn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+button.primary { background: linear-gradient(180deg, var(--red), var(--red-soft)); color: #fff; border-color: transparent;
+  box-shadow: 0 6px 22px rgba(255, 42, 42, .35), inset 0 1px 0 rgba(255, 255, 255, .35); }
+button.ghost { background: transparent; box-shadow: none; }
+button.icon { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; font-size: 15px; }
+
+h2 { margin: 6px 4px 10px; font: 600 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+h2 span { color: var(--red); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+
+.card { padding: 16px 16px 14px; display: grid; gap: 12px; }
+.card .top { display: flex; align-items: center; gap: 10px; }
+.card .name { font-weight: 700; font-size: 16px; }
+.card .unit { font: 11px var(--mono); color: var(--muted); }
+.pill { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px;
+  font: 600 11px var(--mono); border: 1px solid var(--edge); background: var(--glass); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.on .dot { background: var(--red); box-shadow: 0 0 0 0 rgba(255, 42, 42, .6); animation: pulse 1.8s infinite; }
+.on .pill { color: var(--red); border-color: rgba(255, 42, 42, .4); }
+@keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(255, 42, 42, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 42, 42, 0); } }
+@media (prefers-reduced-motion: reduce) { .on .dot { animation: none; } }
+.meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.meta .switch { margin-top: 4px; }
+.meta div { padding: 8px 10px; border-radius: 12px; background: var(--glass); border: 1px solid var(--edge); }
+.meta dt { font: 10px var(--mono); color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+.meta dd { margin: 2px 0 0; font: 600 13px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.switch { display: inline-flex; align-items: center; gap: 8px; font: 11px var(--mono); color: var(--muted); cursor: pointer; }
+.switch input { appearance: none; width: 34px; height: 20px; border-radius: 999px; margin: 0; cursor: pointer;
+  background: var(--glass-strong); border: 1px solid var(--edge); position: relative; transition: background .2s; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ink); transition: transform .2s; }
+.switch input:checked { background: var(--red); }
+.switch input:checked::after { transform: translateX(14px); background: #fff; }
+.switch input:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+.avail { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.avail .unit { margin-left: auto; }
+
+.console { padding: 0; overflow: hidden; }
+.console .bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--edge);
+  font: 600 11px var(--mono); letter-spacing: .12em; color: var(--muted); }
+.console pre { margin: 0; padding: 12px 16px; height: 190px; overflow: auto; font: 12px/1.55 var(--mono); white-space: pre-wrap; }
+.console .t { color: var(--faint); }
+.console .tag { color: var(--red); }
+.console .err { color: var(--red); font-weight: 700; }
+
+dialog { border: 0; padding: 0; background: transparent; color: var(--ink); width: min(880px, 92vw); }
+dialog::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: blur(4px); }
+dialog .glass { padding: 18px; display: grid; gap: 12px; background: var(--glass-strong); }
+dialog pre { margin: 0; max-height: 60vh; overflow: auto; padding: 12px; border-radius: 14px; background: rgba(0, 0, 0, .35);
+  color: #f4e3e3; font: 12px/1.5 var(--mono); white-space: pre-wrap; }
+dialog h3 { margin: 0; font: 700 15px var(--mono); }
+.note { font: 12px var(--mono); color: var(--muted); }
+.empty { padding: 18px; font: 13px var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="field" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<div class="wrap">
+  <header class="glass">
+    <div class="brand">LAMP//CTL<small>WEB · SQL · NOSQL</small></div>
+    <div class="summary" id="summary">connecting…</div>
+    <div class="spacer"></div>
+    <div class="row">
+      <button class="primary" data-all="start">Start all</button>
+      <button data-all="restart">Restart all</button>
+      <button data-all="stop">Stop all</button>
+      <button class="icon" id="theme" title="Switch light / dark" aria-label="Switch light or dark theme">◐</button>
+    </div>
+  </header>
+
+  <main id="sections"></main>
+
+  <section class="glass console" aria-label="Console">
+    <div class="bar">CONSOLE <span class="spacer"></span><button class="ghost" id="clear">clear</button></div>
+    <pre id="out" aria-live="polite"></pre>
+  </section>
+</div>
+
+<dialog id="dlg"><div class="glass">
+  <h3 id="dlgTitle"></h3>
+  <pre id="dlgBody"></pre>
+  <div class="note" id="dlgNote"></div>
+  <div class="row" style="justify-content:flex-end">
+    <button id="dlgCancel">Close</button>
+    <button class="primary" id="dlgOk" hidden>Install</button>
+  </div>
+</div></dialog>
+
+<script>
+const TOKEN = location.hash.slice(1);
+history.replaceState(null, "", "/");  // keep the token out of the visible URL
+const $ = (s) => document.querySelector(s);
+const root = document.documentElement;
+let state = { services: [], kinds: [], busy: false }, consoleAt = 0;
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body ? "POST" : "GET",
+    headers: { "X-Lamp-Token": TOKEN, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function card(s) {
+  const on = s.active === "active";
+  return `<article class="glass card ${on ? "on" : ""}">
+    <div class="top">
+      <div><div class="name">${esc(s.name)}</div><div class="unit">${esc(s.unit)}.service</div></div>
+      <span class="pill"><span class="dot"></span>${on ? "running" : esc(s.active)}</span>
+    </div>
+    <dl class="meta">
+      <div><dt>PID</dt><dd>${s.pid ?? "—"}</dd></div>
+      <div><dt>Ports</dt><dd>${s.ports?.length ? s.ports.join(", ") : "—"}</dd></div>
+      <div><dt>State</dt><dd>${esc(s.sub || "—")}</dd></div>
+      <div><dt>Boot</dt><dd><label class="switch"><input type="checkbox" data-boot="${s.id}" ${s.enabled ? "checked" : ""}
+        aria-label="Start ${esc(s.name)} at boot">${s.enabled ? "on" : "off"}</label></dd></div>
+    </dl>
+    <div class="row">
+      <button class="${on ? "" : "primary"}" data-id="${s.id}" data-act="${on ? "stop" : "start"}">${on ? "Stop" : "Start"}</button>
+      <button data-id="${s.id}" data-act="restart" ${on ? "" : "disabled"}>Restart</button>
+      <button class="ghost" data-logs="${s.id}">Logs</button>
+      ${s.config ? `<button class="ghost" data-open="${s.id}" data-what="config">Config</button>` : ""}
+      ${s.admin ? `<a class="btn ghost" href="${esc(s.admin.url)}" target="_blank" rel="noopener">${esc(s.admin.label)}</a>` : ""}
+    </div>
+  </article>`;
+}
+
+function availRow(s) {
+  return `<div class="glass avail">
+    <div><div class="name">${esc(s.name)}</div></div>
+    <span class="unit">${s.installable ? esc(state.pm) : "not in your distro's repos"}</span>
+    ${s.installable ? `<button data-install="${s.id}">Install</button>` : ""}
+  </div>`;
+}
+
+function render() {
+  const installed = state.services.filter((s) => s.installed);
+  const running = installed.filter((s) => s.active === "active").length;
+  $("#summary").innerHTML = `<b>${running}</b>/${installed.length} running · pkg: <b>${esc(state.pm || "none")}</b>${state.busy ? " · <b>working…</b>" : ""}`;
+  let html = "";
+  for (const [kind, label] of state.kinds) {
+    const mine = installed.filter((s) => s.kind === kind);
+    if (mine.length) html += `<h2><span>▸</span> ${esc(label)}</h2><div class="grid">${mine.map(card).join("")}</div>`;
+  }
+  if (!installed.length) html += `<div class="glass empty">No managed services installed yet. Pick one below.</div>`;
+  const rest = state.services.filter((s) => !s.installed);
+  const panels = [{ id: "phpmyadmin", name: "phpMyAdmin", installable: !!state.pm }, { id: "adminer", name: "Adminer", installable: state.pm === "apt" }];
+  if (rest.length) html += `<h2><span>▸</span> Available</h2><div class="grid">${[...rest, ...panels].map(availRow).join("")}</div>`;
+  $("#sections").innerHTML = html;
+  document.querySelectorAll("button[data-act], button[data-all], button[data-install], input[data-boot]").forEach((b) => (b.disabled = state.busy));
+}
+
+async function refresh() {
+  try {
+    state = await api("/api/status");
+    if (state.theme && !root.dataset.theme) root.dataset.theme = state.theme;
+    render();
+  }
+  catch (e) { $("#summary").textContent = "panel offline — relaunch lamp-gui"; }
+}
+
+async function pollConsole() {
+  try {
+    const { next, lines } = await api(`/api/console?since=${consoleAt}`);
+    consoleAt = next;
+    if (lines.length) {
+      const out = $("#out");
+      out.insertAdjacentHTML("beforeend", lines.map((l) =>
+        `<span class="t">${l.t}</span> <span class="${l.tag === "err" ? "err" : "tag"}">[${esc(l.tag)}]</span> ${esc(l.text)}\n`).join(""));
+      out.scrollTop = out.scrollHeight;
+      refresh();
+    }
+  } catch (_) {}
+}
+
+function show(title, body, note = "", onOk = null) {
+  $("#dlgTitle").textContent = title;
+  $("#dlgBody").textContent = body;
+  $("#dlgNote").textContent = note;
+  $("#dlgOk").hidden = !onOk;
+  $("#dlgOk").onclick = () => { $("#dlg").close(); onOk(); };
+  $("#dlg").showModal();
+}
+
+async function run(fn) {
+  try { await fn(); } catch (e) { show("Can't do that", e.message); }
+  refresh();
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.act) run(() => api("/api/action", { id: b.dataset.id, action: b.dataset.act }));
+  if (b.dataset.all) run(() => api("/api/action", { id: "all", action: b.dataset.all }));
+  if (b.dataset.logs) run(async () => show(`${b.dataset.logs} · journal`, (await api(`/api/logs?id=${b.dataset.logs}`)).text));
+  if (b.dataset.open) run(() => api("/api/open", { id: b.dataset.open, what: b.dataset.what }));
+  if (b.dataset.install) run(async () => {
+    const { commands } = await api(`/api/install-plan?id=${b.dataset.install}`);
+    show(`Install ${b.dataset.install}?`, commands.map((c) => "$ " + c.join(" ")).join("\n"),
+      "Runs as root through pkexec; your desktop will ask for your password.",
+      () => run(() => api("/api/install", { id: b.dataset.install })));
+  });
+});
+document.addEventListener("change", (e) => {
+  const id = e.target.dataset?.boot;
+  if (id) run(() => api("/api/action", { id, action: e.target.checked ? "enable" : "disable" }));
+});
+$("#dlgCancel").onclick = () => $("#dlg").close();
+$("#clear").onclick = () => ($("#out").textContent = "");
+
+$("#theme").onclick = () => {
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : !matchMedia("(prefers-color-scheme: light)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  api("/api/theme", { theme: root.dataset.theme }).catch(() => {});
+};
+
+refresh(); pollConsole();
+setInterval(refresh, 4000);
+setInterval(pollConsole, 1200);
+setInterval(() => api("/api/ping", {}).catch(() => {}), 5000);
+</script>
+</body>
+</html>
