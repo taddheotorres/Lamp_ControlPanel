@@ -99,6 +99,9 @@ class CommandTest(unittest.TestCase):
         units = ["httpd", "mariadb"]
         self.assertEqual(core.action_command("apache", "restart", units), ["systemctl", "restart", "httpd"])
         self.assertEqual(core.action_command("mariadb", "enable", units), ["systemctl", "enable", "--now", "mariadb"])
+        # restarting everything must not start what was stopped
+        self.assertEqual(core.action_command("apache", "restart", units, bulk=True), ["systemctl", "try-restart", "httpd"])
+        self.assertEqual(core.action_command("apache", "stop", units, bulk=True), ["systemctl", "stop", "httpd"])
         with self.assertRaises(ValueError):
             core.action_command("apache", "rm -rf /", units)
         with self.assertRaises(ValueError):

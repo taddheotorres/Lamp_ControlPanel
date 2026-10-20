@@ -195,7 +195,8 @@ def privileged(cmd, gui=False, runner=None):
     return ["sudo"] + list(cmd)
 
 
-def action_command(service_id, action, units):
+def action_command(service_id, action, units, bulk=False):
+    """`bulk` is for "restart everything": plain restart would also start services the user left stopped."""
     if action not in ACTIONS:
         raise ValueError(f"unknown action: {action}")
     unit = find_unit(by_id(service_id), units)
@@ -203,6 +204,8 @@ def action_command(service_id, action, units):
         raise ValueError(f"{service_id} is not installed")
     if action in ("enable", "disable"):
         return ["systemctl", action, "--now", unit]
+    if action == "restart" and bulk:
+        return ["systemctl", "try-restart", unit]
     return ["systemctl", action, unit]
 
 
