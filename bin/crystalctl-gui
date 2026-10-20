@@ -50,9 +50,63 @@ class Console:
             return len(self.lines), self.lines[n:] if n <= len(self.lines) else self.lines[-200:]
 
 
+class DemoRunner(core.Runner):
+    """A pretend system for `--demo`: try the panel, or take screenshots, with nothing installed and no root.
+    Start/stop/enable flip in-memory state; installs and file opens only print what would happen."""
+
+    UNITS = {  # unit -> [active, enabled, pid, ports]
+        "httpd": [True, True, 1204, (80, 443)], "php8.3-fpm": [True, True, 1211, ()],
+        "mariadb": [True, False, 1388, (3306,)], "postgresql": [False, False, None, (5432,)],
+        "valkey": [True, True, 1460, (6379,)],
+    }
+    PATHS = {"/etc/httpd/conf/httpd.conf", "/etc/my.cnf", "/etc/valkey/valkey.conf", "/etc/php-fpm.conf",
+             "/var/lib/pgsql/data/postgresql.conf", "/usr/share/phpmyadmin", "/usr/share/adminer"}
+
+    def __init__(self):
+        self.units = {u: list(v) for u, v in self.UNITS.items()}
+
+    def run(self, cmd, timeout=30):
+        cmd = list(cmd[1:]) if cmd and cmd[0] in ("pkexec", "sudo") else list(cmd)
+        if cmd[:2] == ["sh", "-c"]:  # the panel chains "all" actions into one shell call
+            for part in cmd[2].split(" && "):
+                self.run(shlex.split(part))
+            return 0, "", ""
+        if cmd[:2] == ["systemctl", "list-unit-files"]:
+            return 0, "".join(f"{u}.service enabled enabled\n" for u in self.units), ""
+        if cmd[0] == "ss":
+            ports = [p for on, _, _, ps in self.units.values() if on for p in ps]
+            return 0, "".join(f"LISTEN 0 128 0.0.0.0:{p} 0.0.0.0:*\n" for p in ports), ""
+        if cmd[:2] == ["systemctl", "show"]:
+            on, enabled, pid, _ = self.units[cmd[2]]
+            return 0, (f"ActiveState={'active' if on else 'inactive'}\nSubState={'running' if on else 'dead'}\n"
+                       f"UnitFileState={'enabled' if enabled else 'disabled'}\nMainPID={pid if on else 0}\n"), ""
+        if cmd[:2] == ["systemctl", "try-restart"]:
+            return 0, "", ""  # restarts only what already runs, so state does not change
+        if cmd[0] == "systemctl" and cmd[1] in core.ACTIONS:
+            unit = self.units[cmd[-1]]
+            time.sleep(0.6)
+            if cmd[1] in ("enable", "disable"):
+                unit[1] = cmd[1] == "enable"
+            unit[0] = cmd[1] != "stop" and cmd[1] != "disable"
+            unit[2] = unit[2] or 4000 + len(cmd[-1])
+            return 0, "", ""
+        if cmd[0] == "journalctl":
+            unit = cmd[cmd.index("-u") + 1]
+            return 0, "\n".join(f"2026-10-20T12:0{i}:1{i}-0700 demo {unit}[{1200 + i}]: {msg}" for i, msg in enumerate(
+                ["Starting service…", "Listening for connections", "Reloaded configuration", "Ready"])), ""
+        return 0, "demo mode: nothing was changed", ""
+
+    def which(self, name):
+        return f"/usr/bin/{name}" if name in ("dnf", "pkexec") else None
+
+    def exists(self, path):
+        return path in self.PATHS
+
+
 class App:
     def __init__(self, runner=None):
         self.runner = runner or core.Runner()
+        self.demo = isinstance(self.runner, DemoRunner)
         self.token = secrets.token_urlsafe(24)
         self.console = Console()
         self.last_seen = time.time()
@@ -86,7 +140,7 @@ class App:
         ids = [s.id for s in core.CATALOG if core.find_unit(s, units)] if service_id == "all" else [service_id]
         if not ids:
             raise ValueError("no managed services installed")
-        cmds = [core.action_command(i, action, units) for i in ids]
+        cmds = [core.action_command(i, action, units, bulk=service_id == "all") for i in ids]
         # one pkexec per command would mean one password prompt each; chain them in a single call instead
         if len(cmds) > 1:
             cmds = [["sh", "-c", " && ".join(shlex.join(c) for c in cmds)]]
@@ -130,7 +184,10 @@ class App:
         path = item.get(what) if what in ("config", "log") else None
         if not path:
             raise ValueError(f"no {what} found for {service_id}")
-        subprocess.Popen(["xdg-open", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if self.demo:
+            self.console.add(f"demo: would open {path}", service_id)
+        else:
+            subprocess.Popen(["xdg-open", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return path
 
 
@@ -186,7 +243,8 @@ def make_handler(app):
                 routes = {
                     ("GET", "/api/status"): lambda: {"services": core.status(app.runner), "kinds": core.KINDS,
                                                      "pm": core.package_manager(app.runner),
-                                                     "busy": app.console.busy, "theme": app.theme()},
+                                                     "busy": app.console.busy, "theme": app.theme(),
+                                                     "demo": app.demo},
                     ("GET", "/api/console"): lambda: dict(zip(("next", "lines"),
                                                               app.console.since(int(args.get("since", 0))))),
                     ("GET", "/api/logs"): lambda: {"text": app.logs(args.get("id", ""))},
@@ -220,7 +278,7 @@ def open_window(url):
 
 
 def main():
-    app = App()
+    app = App(DemoRunner() if "--demo" in sys.argv else None)
     server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     app.port = server.server_address[1]
     # the token rides in the fragment, which browsers never send to servers or put in Referer
