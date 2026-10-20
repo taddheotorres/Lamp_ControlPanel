@@ -241,7 +241,7 @@ function render() {
   // lit cells red when something runs, unlit cells drawn faint like a display
   $("#count").innerHTML = esc(banner(`${pad2(running)}/${pad2(installed.length)}`, "█", "░"))
     .replace(/█+/g, (m) => running ? `<span class="on">${m}</span>` : m);
-  $("#pm").textContent = `# pkg: ${state.pm || "none"} `;
+  $("#pm").textContent = state.demo ? "# demo: sample data " : `# pkg: ${state.pm || "none"} `;
   $("#busy").textContent = state.busy ? "working…" : "";
 
   let html = "", n = 0;

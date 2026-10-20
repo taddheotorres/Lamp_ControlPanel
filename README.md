@@ -11,9 +11,30 @@
 
 <sub>Formerly Lamp_ControlPanel. Running `./install.sh` again removes the old `lamp` commands.</sub>
 
-![Dark theme](assets/panel-dark.png)
+![crystalctl panel with its animated ASCII background](assets/panel-live.gif)
 
 </div>
+
+## Screenshots
+
+<sub>All taken with `crystalctl-gui --demo`, which shows sample services and changes nothing on your system.</sub>
+
+| Dark | Light |
+|---|---|
+| ![Dark theme with running services](assets/panel-dark.png) | ![Light theme](assets/panel-light.png) |
+| **Logs** from the journal, per service | **Install** shows the exact commands first |
+| ![Journal dialog](assets/panel-logs.png) | ![Install confirmation](assets/panel-install.png) |
+
+**Console**: every action prints the command it ran and how it ended.
+
+![Console after restarting everything](assets/panel-console.png)
+
+### Try it without installing anything
+
+```bash
+git clone https://github.com/taddheotorres/crystalctl.git
+crystalctl/bin/crystalctl-gui --demo
+```
 
 ## What it manages
 
@@ -62,7 +83,6 @@ Open **crystalctl** from your app menu, or run `crystalctl gui`. It opens as an 
 Chromium, Chrome, Brave or Edge if you have one, otherwise in your default browser. It closes itself
 about 45 seconds after you close the window.
 
-![Light theme](assets/panel-light.png)
 
 ### Terminal
 
@@ -100,6 +120,7 @@ Redis / Valkey  valkey          ○ inactive  no     -        -
 ```bash
 python3 -m unittest discover -s tests   # no root and no services needed
 bin/crystalctl-gui --no-window                # prints the panel URL instead of opening a window
+bin/crystalctl-gui --demo                     # sample services, nothing is changed
 ```
 
 ## Uninstall

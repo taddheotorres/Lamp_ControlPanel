@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import threading
+import time
 import unittest
 import urllib.request
 from http.server import ThreadingHTTPServer
@@ -64,6 +65,39 @@ class PanelApiTest(unittest.TestCase):
         code, data = self.call("/api/install-plan?id=postgresql")
         self.assertEqual(code, 200)
         self.assertEqual(data["commands"][0], ["dnf", "install", "-y", "postgresql-server"])
+
+
+class DemoModeTest(unittest.TestCase):
+    def wait_idle(self, app):
+        for _ in range(100):
+            if not app.console.busy:
+                return
+            time.sleep(0.05)
+        self.fail("task did not finish")
+
+    def test_demo_shows_sample_services(self):
+        by = {s["id"]: s for s in gui.core.status(gui.DemoRunner())}
+        self.assertEqual(by["apache"]["active"], "active")
+        self.assertEqual(by["apache"]["ports"], [80, 443])
+        self.assertEqual(by["postgresql"]["active"], "inactive")
+        self.assertEqual(by["mariadb"]["admin"]["label"], "phpMyAdmin")
+        self.assertFalse(by["nginx"]["installed"])
+
+    def test_demo_actions_change_only_memory(self):
+        app = gui.App(gui.DemoRunner())
+        self.assertTrue(app.demo)
+        app.action("apache", "stop")
+        self.wait_idle(app)
+        app.action("postgresql", "enable")
+        self.wait_idle(app)
+        app.action("all", "restart")
+        self.wait_idle(app)
+        by = {s["id"]: s for s in gui.core.status(app.runner)}
+        self.assertEqual(by["apache"]["active"], "inactive")  # stopped above; restart all must not revive it
+        self.assertEqual(by["postgresql"]["active"], "active")
+        self.assertTrue(by["postgresql"]["enabled"])
+        app.open_path("apache", "config")  # must not launch a real editor
+        self.assertIn("demo: would open", app.console.lines[-1]["text"])
 
 
 if __name__ == "__main__":

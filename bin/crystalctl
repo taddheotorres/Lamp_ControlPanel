@@ -82,7 +82,7 @@ def cmd_action(action, args):
     failed = 0
     for i in ids:
         try:
-            cmd = core.action_command(i, action, units)
+            cmd = core.action_command(i, action, units, bulk=not args)
         except ValueError as e:
             print(f"{GREY}skip:{NC} {e}")
             continue
