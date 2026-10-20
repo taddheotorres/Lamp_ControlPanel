@@ -22,6 +22,7 @@ echo -e "${RED}${BOLD}Uninstalling LAMP Control Panel...${NC}\n"
 # Remove binaries
 rm -f /usr/local/bin/lamp
 rm -f /usr/local/bin/lamp-gui
+rm -rf /usr/local/lib/lamp-control /usr/local/share/lamp-control
 echo -e "${GREEN}[OK] Removed /usr/local/bin/lamp and /usr/local/bin/lamp-gui${NC}"
 
 # Remove desktop entries and icons
